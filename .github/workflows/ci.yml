@@ -1,0 +1,103 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: hanoigo
+          POSTGRES_PASSWORD: hanoigo
+          POSTGRES_DB: hanoigo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hanoigo -d hanoigo"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e './backend[dev]'
+      - run: alembic upgrade head
+        working-directory: backend
+      - run: python -m app.infrastructure.db.seed
+        working-directory: backend
+      - run: ruff check .
+        working-directory: backend
+      - run: pytest
+        working-directory: backend
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run lint
+        working-directory: frontend
+      - run: npm run typecheck
+        working-directory: frontend
+      - run: npm run test
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: hanoigo
+          POSTGRES_PASSWORD: hanoigo
+          POSTGRES_DB: hanoigo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hanoigo -d hanoigo"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: pip install -e './backend[dev]'
+      - run: alembic upgrade head
+        working-directory: backend
+      - run: python -m app.infrastructure.db.seed
+        working-directory: backend
+      - run: npm ci
+        working-directory: frontend
+      - run: npm ci
+        working-directory: frontend/e2e
+      - run: npx playwright install --with-deps webkit
+        working-directory: frontend/e2e
+      - run: npm run build
+        working-directory: frontend
+      - run: npm run test:e2e
+        working-directory: frontend
+        env:
+          HANOIGO_BACKEND_COMMAND: uvicorn app.main:app --host 127.0.0.1 --port 8000
+      - name: E2E with reduced motion (spec §14)
+        run: npm run test:e2e
+        working-directory: frontend
+        env:
+          HANOIGO_BACKEND_COMMAND: uvicorn app.main:app --host 127.0.0.1 --port 8000
+          HANOIGO_REDUCED_MOTION: "1"

@@ -1,0 +1,302 @@
+{
+  "_about": "Year-round Vietnamese holidays and Hanoi festivals. calendar: solar (dương lịch), lunar (âm lịch, Hanoi time) or solar_term (sun longitude in degrees, e.g. Thanh Minh = 15). offset_days shifts the computed date (Giao thừa = day before lunar 1/1). kind: public_holiday (official day off), traditional, festival (Hanoi lễ hội), observance. place_slugs link to catalog places that host the occasion. Official extra days off around Tết and 2/9 are announced yearly, so only the core dates are listed.",
+  "holidays": [
+    {
+      "key": "new_year", "calendar": "solar", "month": 1, "day": 1, "duration_days": 1, "kind": "public_holiday",
+      "name_vi": "Tết Dương lịch", "name_en": "New Year's Day",
+      "description_vi": "Ngày nghỉ lễ chính thức đầu năm dương lịch. Đêm 31/12 có hoạt động đếm ngược quanh Hồ Gươm.",
+      "description_en": "Official public holiday. On the night of 31 December crowds gather around Hoan Kiem Lake for the countdown.",
+      "suggestion_vi": "Dạo phố đi bộ Hồ Gươm, ngắm phố cổ trang trí; nên đi sớm vì rất đông, gửi xe từ xa.",
+      "suggestion_en": "Walk the Hoan Kiem pedestrian streets and festive Old Quarter; arrive early and park away from the lake.",
+      "place_slugs": ["new-year-countdown-hoan-kiem", "hoan-kiem-pedestrian-street"]
+    },
+    {
+      "key": "kitchen_gods", "calendar": "lunar", "month": 12, "day": 23, "duration_days": 1, "kind": "traditional",
+      "name_vi": "Ông Công Ông Táo", "name_en": "Kitchen Gods' Day",
+      "description_vi": "Ngày 23 tháng Chạp, các gia đình cúng tiễn Táo Quân về trời và thả cá chép ở hồ, sông.",
+      "description_en": "On the 23rd of the last lunar month families send the Kitchen Gods to heaven and release carp into lakes and rivers.",
+      "suggestion_vi": "Ghé chợ Đồng Xuân, phố Hàng Mã xem không khí sắm Tết; buổi sáng có thể thấy người dân thả cá chép ở Hồ Tây, Hồ Gươm.",
+      "suggestion_en": "Visit Dong Xuan Market and Hang Ma Street for pre-Tet shopping; in the morning locals release carp at West Lake and Hoan Kiem Lake.",
+      "place_slugs": ["dong-xuan-market", "west-lake-walk"]
+    },
+    {
+      "key": "lunar_new_year_eve", "calendar": "lunar", "month": 1, "day": 1, "offset_days": -1, "duration_days": 1, "kind": "public_holiday",
+      "name_vi": "Giao thừa", "name_en": "Lunar New Year's Eve",
+      "description_vi": "Đêm cuối cùng của năm âm lịch. Hà Nội bắn pháo hoa lúc 0 giờ tại nhiều điểm, trong đó có Hồ Gươm.",
+      "description_en": "The last night of the lunar year. Hanoi holds midnight fireworks at several sites, including Hoan Kiem Lake.",
+      "suggestion_vi": "Xem pháo hoa ở Hồ Gươm, sau đó hái lộc đầu năm ở đền chùa; nhiều hàng quán đóng cửa từ chiều.",
+      "suggestion_en": "Watch the fireworks at Hoan Kiem Lake, then join the first-blessing visit to a temple; many eateries close from the afternoon.",
+      "place_slugs": ["hoan-kiem-lake", "ngoc-son-temple", "tran-quoc-pagoda"]
+    },
+    {
+      "key": "lunar_new_year", "calendar": "lunar", "month": 1, "day": 1, "duration_days": 3, "kind": "public_holiday",
+      "name_vi": "Tết Nguyên Đán", "name_en": "Tet (Lunar New Year)",
+      "description_vi": "Dịp lễ lớn nhất năm. Mùng 1–3 phố phường vắng, nhiều cửa hàng, quán ăn và một số bảo tàng nghỉ.",
+      "description_en": "The biggest holiday of the year. On days 1–3 streets are quiet and many shops, eateries and some museums close.",
+      "suggestion_vi": "Đi lễ chùa đầu năm (Phủ Tây Hồ, Trấn Quốc, Quán Sứ), dạo phố cổ trang trí Tết, chụp ảnh với hoa đào; kiểm tra giờ mở cửa trước khi đi.",
+      "suggestion_en": "Make a New Year pagoda visit (Phu Tay Ho, Tran Quoc, Quan Su), stroll the decorated Old Quarter and enjoy peach blossoms; check opening hours first.",
+      "place_slugs": ["tet-traditional-old-quarter", "phu-tay-ho", "tran-quoc-pagoda", "quan-su-pagoda"]
+    },
+    {
+      "key": "dong_da_festival", "calendar": "lunar", "month": 1, "day": 5, "duration_days": 1, "kind": "festival",
+      "name_vi": "Lễ hội Gò Đống Đa", "name_en": "Dong Da Mound Festival",
+      "description_vi": "Kỷ niệm chiến thắng Ngọc Hồi – Đống Đa của vua Quang Trung năm 1789, có rước kiệu và múa rồng lửa.",
+      "description_en": "Commemorates Emperor Quang Trung's 1789 victory at Ngoc Hoi – Dong Da, with processions and fire-dragon dances.",
+      "suggestion_vi": "Ghé buổi sáng để xem lễ rước, kết hợp tham quan Văn Miếu và chùa Láng gần đó.",
+      "suggestion_en": "Go in the morning for the procession and combine it with the nearby Temple of Literature and Lang Pagoda.",
+      "place_slugs": ["temple-of-literature", "lang-pagoda"]
+    },
+    {
+      "key": "co_loa_festival", "calendar": "lunar", "month": 1, "day": 6, "duration_days": 3, "kind": "festival",
+      "name_vi": "Lễ hội Cổ Loa", "name_en": "Co Loa Citadel Festival",
+      "description_vi": "Lễ hội tưởng nhớ An Dương Vương tại thành Cổ Loa (Đông Anh), chính hội mùng 6 tháng Giêng.",
+      "description_en": "Honours King An Duong Vuong at Co Loa Citadel (Dong Anh); the main day is the 6th of the first lunar month.",
+      "suggestion_vi": "Xem rước kiệu và trò chơi dân gian, nên đi xe máy hoặc ô tô vì cách trung tâm khoảng 20 km.",
+      "suggestion_en": "Watch the palanquin procession and folk games; go by motorbike or car as it is about 20 km from the centre.",
+      "place_slugs": ["co-loa-festival", "co-loa-citadel"]
+    },
+    {
+      "key": "soc_temple_festival", "calendar": "lunar", "month": 1, "day": 6, "duration_days": 3, "kind": "festival",
+      "name_vi": "Hội Gióng đền Sóc", "name_en": "Giong Festival at Soc Temple",
+      "description_vi": "Hội Gióng ở Sóc Sơn, di sản văn hóa phi vật thể UNESCO, nổi tiếng với nghi lễ rước hoa tre cầu may.",
+      "description_en": "The Giong festival in Soc Son, a UNESCO intangible heritage, known for the lucky bamboo-flower procession.",
+      "suggestion_vi": "Đi sớm buổi sáng mùng 6 để xem lễ rước; đường lên đền đông, nên mang giày thoải mái.",
+      "suggestion_en": "Arrive early on the 6th for the procession; the path to the temple is crowded, so wear comfortable shoes.",
+      "place_slugs": ["soc-temple-festival", "soc-temple-hill-walk"]
+    },
+    {
+      "key": "huong_pagoda_festival", "calendar": "lunar", "month": 1, "day": 6, "duration_days": 85, "kind": "festival",
+      "name_vi": "Mùa lễ hội Chùa Hương", "name_en": "Perfume Pagoda Festival season",
+      "description_vi": "Lễ hội hành hương lớn nhất miền Bắc, khai hội mùng 6 tháng Giêng và kéo dài đến hết tháng 3 âm lịch.",
+      "description_en": "Northern Vietnam's largest pilgrimage, opening on the 6th of the first lunar month and running to the end of the third.",
+      "suggestion_vi": "Đi thuyền suối Yến, leo hoặc đi cáp treo lên động Hương Tích; tránh cuối tuần tháng Giêng vì rất đông.",
+      "suggestion_en": "Take the boat along Yen Stream and hike or ride the cable car to Huong Tich Cave; avoid first-month weekends, which are very crowded.",
+      "place_slugs": ["huong-pagoda-festival", "perfume-pagoda"]
+    },
+    {
+      "key": "hai_ba_trung_festival", "calendar": "lunar", "month": 1, "day": 4, "duration_days": 7, "kind": "festival",
+      "name_vi": "Lễ hội đền Hai Bà Trưng (Mê Linh)", "name_en": "Hai Ba Trung Temple Festival (Me Linh)",
+      "description_vi": "Tưởng nhớ Hai Bà Trưng tại quê hương Mê Linh, chính hội mùng 6 tháng Giêng.",
+      "description_en": "Honours the Trung Sisters in their home district of Me Linh; the main day is the 6th of the first lunar month.",
+      "suggestion_vi": "Kết hợp với Cổ Loa hoặc đền Sóc trong cùng một ngày đi ngoại thành phía bắc.",
+      "suggestion_en": "Combine with Co Loa or Soc Temple on the same northern outskirts day.",
+      "place_slugs": ["hai-ba-trung-temple-me-linh"]
+    },
+    {
+      "key": "first_full_moon", "calendar": "lunar", "month": 1, "day": 15, "duration_days": 1, "kind": "traditional",
+      "name_vi": "Rằm tháng Giêng (Tết Nguyên Tiêu)", "name_en": "First Full Moon (Lantern Festival)",
+      "description_vi": "Ngày rằm đầu tiên của năm, người Hà Nội đi lễ chùa cầu an; các đền chùa rất đông từ tối 14.",
+      "description_en": "The first full moon of the year, when Hanoians visit pagodas to pray for peace; temples are crowded from the evening before.",
+      "suggestion_vi": "Đi lễ Phủ Tây Hồ, chùa Trấn Quốc hoặc đền Và (Sơn Tây); đi sáng sớm để tránh đông.",
+      "suggestion_en": "Visit Phu Tay Ho, Tran Quoc Pagoda or Va Temple (Son Tay); go early in the morning to avoid crowds.",
+      "place_slugs": ["phu-tay-ho", "tran-quoc-pagoda", "va-temple"]
+    },
+    {
+      "key": "womens_day_international", "calendar": "solar", "month": 3, "day": 8, "duration_days": 1, "kind": "observance",
+      "name_vi": "Quốc tế Phụ nữ 8/3", "name_en": "International Women's Day",
+      "description_vi": "Ngày tôn vinh phụ nữ, phố hoa và quán cà phê rất nhộn nhịp.",
+      "description_en": "A day honouring women; flower stalls and cafés are busy.",
+      "suggestion_vi": "Ghé Bảo tàng Phụ nữ Việt Nam và chợ hoa Quảng Bá buổi sáng sớm.",
+      "suggestion_en": "Visit the Vietnamese Women's Museum and Quang Ba flower market early in the morning.",
+      "place_slugs": ["vietnamese-womens-museum", "quang-ba-flower-market"]
+    },
+    {
+      "key": "cold_food_festival", "calendar": "lunar", "month": 3, "day": 3, "duration_days": 1, "kind": "traditional",
+      "name_vi": "Tết Hàn thực", "name_en": "Cold Food Festival",
+      "description_vi": "Ngày 3 tháng 3 âm lịch, các gia đình làm bánh trôi, bánh chay dâng tổ tiên.",
+      "description_en": "On the 3rd of the third lunar month families make floating rice cakes (bánh trôi, bánh chay) for their ancestors.",
+      "suggestion_vi": "Thử bánh trôi, bánh chay ở chợ Đồng Xuân hoặc các hàng quà phố cổ.",
+      "suggestion_en": "Try bánh trôi and bánh chay at Dong Xuan Market or Old Quarter snack stalls.",
+      "place_slugs": ["dong-xuan-market", "old-quarter-walk"]
+    },
+    {
+      "key": "thanh_minh", "calendar": "solar_term", "longitude": 15, "duration_days": 1, "kind": "traditional",
+      "name_vi": "Tiết Thanh Minh", "name_en": "Qingming (Tomb-Sweeping Day)",
+      "description_vi": "Tiết khí đầu tháng 4, người Việt đi tảo mộ, thắp hương tưởng nhớ tổ tiên.",
+      "description_en": "The early-April solar term when Vietnamese families tend ancestral graves.",
+      "suggestion_vi": "Thời tiết mát, thích hợp đi dạo Hồ Tây, Văn Miếu hoặc làng cổ Đường Lâm.",
+      "suggestion_en": "Mild weather is ideal for West Lake, the Temple of Literature or Duong Lam ancient village.",
+      "place_slugs": ["west-lake-walk", "duong-lam-ancient-village"]
+    },
+    {
+      "key": "thay_pagoda_festival", "calendar": "lunar", "month": 3, "day": 5, "duration_days": 3, "kind": "festival",
+      "name_vi": "Lễ hội Chùa Thầy", "name_en": "Thay Pagoda Festival",
+      "description_vi": "Lễ hội chùa Thầy (Quốc Oai) mùng 5–7 tháng 3, nổi tiếng với múa rối nước truyền thống trên thủy đình.",
+      "description_en": "Held on the 5th–7th of the third lunar month at Thay Pagoda (Quoc Oai), famous for water puppetry on the lake pavilion.",
+      "suggestion_vi": "Xem rối nước, leo núi Sài Sơn; có thể kết hợp chùa Tây Phương cách đó khoảng 7 km.",
+      "suggestion_en": "Watch the water puppets and climb Sai Son hill; Tay Phuong Pagoda is about 7 km away.",
+      "place_slugs": ["thay-pagoda-festival", "thay-pagoda", "tay-phuong-pagoda"]
+    },
+    {
+      "key": "hung_kings", "calendar": "lunar", "month": 3, "day": 10, "duration_days": 1, "kind": "public_holiday",
+      "name_vi": "Giỗ Tổ Hùng Vương", "name_en": "Hung Kings' Commemoration",
+      "description_vi": "Ngày nghỉ lễ chính thức tưởng nhớ các vua Hùng, mùng 10 tháng 3 âm lịch.",
+      "description_en": "Official public holiday honouring the Hung Kings, on the 10th of the third lunar month.",
+      "suggestion_vi": "Tham quan Bảo tàng Lịch sử Quốc gia, Hoàng thành Thăng Long; các điểm tham quan đông hơn ngày thường.",
+      "suggestion_en": "Visit the National Museum of History or the Imperial Citadel; attractions are busier than usual.",
+      "place_slugs": ["national-history-museum", "imperial-citadel"]
+    },
+    {
+      "key": "giong_phu_dong_festival", "calendar": "lunar", "month": 4, "day": 6, "duration_days": 7, "kind": "festival",
+      "name_vi": "Hội Gióng Phù Đổng", "name_en": "Phu Dong Giong Festival",
+      "description_vi": "Hội Gióng ở đền Phù Đổng (Gia Lâm), di sản UNESCO, tái hiện trận đánh giặc Ân; chính hội mùng 9 tháng 4.",
+      "description_en": "The Giong festival at Phu Dong Temple (Gia Lam), a UNESCO heritage re-enacting Saint Giong's battle; the main day is the 9th of the fourth lunar month.",
+      "suggestion_vi": "Đến ngày mùng 9 để xem trận đánh tái hiện, kết hợp làng gốm Bát Tràng cùng huyện Gia Lâm.",
+      "suggestion_en": "Go on the 9th for the battle re-enactment and pair it with Bat Trang pottery village, also in Gia Lam.",
+      "place_slugs": ["giong-phu-dong-festival", "phu-dong-temple", "bat-trang-pottery"]
+    },
+    {
+      "key": "vesak", "calendar": "lunar", "month": 4, "day": 15, "duration_days": 1, "kind": "traditional",
+      "name_vi": "Lễ Phật Đản", "name_en": "Vesak (Buddha's Birthday)",
+      "description_vi": "Rằm tháng 4 âm lịch, các chùa treo cờ, đèn và tổ chức lễ mừng Phật đản.",
+      "description_en": "On the full moon of the fourth lunar month pagodas hang flags and lanterns to celebrate the Buddha's birth.",
+      "suggestion_vi": "Ghé chùa Quán Sứ (trụ sở Giáo hội Phật giáo), chùa Trấn Quốc; ăn chay ở nhà hàng chay gần đó.",
+      "suggestion_en": "Visit Quan Su Pagoda (Buddhist Sangha headquarters) or Tran Quoc Pagoda and try a nearby vegetarian restaurant.",
+      "place_slugs": ["vesak-quan-su", "quan-su-pagoda", "tran-quoc-pagoda", "vegetarian-phuong-nam"]
+    },
+    {
+      "key": "reunification_day", "calendar": "solar", "month": 4, "day": 30, "duration_days": 1, "kind": "public_holiday",
+      "name_vi": "Ngày Giải phóng miền Nam 30/4", "name_en": "Reunification Day",
+      "description_vi": "Ngày nghỉ lễ chính thức, thường nối liền với 1/5 thành kỳ nghỉ dài.",
+      "description_en": "Official public holiday, usually joined with 1 May into a long weekend.",
+      "suggestion_vi": "Phố treo cờ rực rỡ; các điểm du lịch đông, nên đặt chỗ ăn và vé trước.",
+      "suggestion_en": "Streets are decked in flags; attractions are busy, so book meals and tickets in advance.",
+      "place_slugs": ["vietnam-military-history-museum"]
+    },
+    {
+      "key": "labour_day", "calendar": "solar", "month": 5, "day": 1, "duration_days": 1, "kind": "public_holiday",
+      "name_vi": "Quốc tế Lao động 1/5", "name_en": "International Labour Day",
+      "description_vi": "Ngày nghỉ lễ chính thức.",
+      "description_en": "Official public holiday.",
+      "suggestion_vi": "Người Hà Nội đi chơi xa nên nội thành thoáng hơn; ngoại thành như Ba Vì, Sóc Sơn lại đông.",
+      "suggestion_en": "Many residents leave town so the centre is calmer, while outskirts such as Ba Vi and Soc Son get busy.",
+      "place_slugs": []
+    },
+    {
+      "key": "ho_chi_minh_birthday", "calendar": "solar", "month": 5, "day": 19, "duration_days": 1, "kind": "observance",
+      "name_vi": "Ngày sinh Chủ tịch Hồ Chí Minh", "name_en": "President Ho Chi Minh's Birthday",
+      "description_vi": "Kỷ niệm ngày sinh Bác Hồ, nhiều đoàn viếng Lăng và Bảo tàng Hồ Chí Minh.",
+      "description_en": "Marks Ho Chi Minh's birthday; many groups visit the Mausoleum and the Ho Chi Minh Museum.",
+      "suggestion_vi": "Viếng Lăng Bác buổi sáng, sau đó tham quan khu di tích Phủ Chủ tịch và Bảo tàng Hồ Chí Minh.",
+      "suggestion_en": "Visit the Mausoleum in the morning, then the Presidential Palace relic site and the Ho Chi Minh Museum.",
+      "place_slugs": ["ho-chi-minh-mausoleum", "presidential-palace-stilt-house", "ho-chi-minh-museum"]
+    },
+    {
+      "key": "doan_ngo", "calendar": "lunar", "month": 5, "day": 5, "duration_days": 1, "kind": "traditional",
+      "name_vi": "Tết Đoan Ngọ (diệt sâu bọ)", "name_en": "Doan Ngo (Mid-Year Festival)",
+      "description_vi": "Mùng 5 tháng 5 âm lịch, người Hà Nội ăn rượu nếp, hoa quả buổi sáng để 'diệt sâu bọ'.",
+      "description_en": "On the 5th of the fifth lunar month Hanoians eat fermented sticky rice and fruit in the morning to 'kill inner pests'.",
+      "suggestion_vi": "Ghé chợ Đồng Xuân buổi sáng mua rượu nếp, mận, vải theo phong tục.",
+      "suggestion_en": "Go to Dong Xuan Market in the morning for fermented rice, plums and lychees.",
+      "place_slugs": ["dong-xuan-market"]
+    },
+    {
+      "key": "childrens_day", "calendar": "solar", "month": 6, "day": 1, "duration_days": 1, "kind": "observance",
+      "name_vi": "Quốc tế Thiếu nhi 1/6", "name_en": "International Children's Day",
+      "description_vi": "Nhiều hoạt động vui chơi cho trẻ em ở công viên, bảo tàng.",
+      "description_en": "Parks and museums host activities for children.",
+      "suggestion_vi": "Phù hợp gia đình: Bảo tàng Dân tộc học, công viên Thủ Lệ, rối nước Thăng Long.",
+      "suggestion_en": "Family-friendly picks: Museum of Ethnology, Thu Le Park, Thang Long water puppets.",
+      "place_slugs": ["ethnology-museum", "thu-le-park", "thang-long-water-puppets"]
+    },
+    {
+      "key": "family_day", "calendar": "solar", "month": 6, "day": 28, "duration_days": 1, "kind": "observance",
+      "name_vi": "Ngày Gia đình Việt Nam", "name_en": "Vietnamese Family Day",
+      "description_vi": "Ngày tôn vinh gia đình, nhiều chương trình vui chơi cuối tuần.",
+      "description_en": "A day celebrating families, with weekend activities around the city.",
+      "suggestion_vi": "Dạo Hồ Tây, ăn bánh tôm và đi thuyền vịt cùng gia đình.",
+      "suggestion_en": "Stroll West Lake, eat shrimp cakes and take a pedal boat with the family.",
+      "place_slugs": ["west-lake-walk", "banh-tom-ho-tay"]
+    },
+    {
+      "key": "vu_lan", "calendar": "lunar", "month": 7, "day": 15, "duration_days": 1, "kind": "traditional",
+      "name_vi": "Lễ Vu Lan (Rằm tháng Bảy)", "name_en": "Vu Lan (Ghost Festival)",
+      "description_vi": "Rằm tháng 7 âm lịch, mùa báo hiếu cha mẹ; các chùa tổ chức lễ cài hoa hồng.",
+      "description_en": "The full moon of the seventh lunar month honours parents; pagodas hold rose-pinning ceremonies.",
+      "suggestion_vi": "Dự lễ Vu Lan ở chùa Quán Sứ hoặc Phủ Tây Hồ buổi tối.",
+      "suggestion_en": "Join an evening Vu Lan ceremony at Quan Su Pagoda or Phu Tay Ho.",
+      "place_slugs": ["vu-lan-quan-su", "quan-su-pagoda", "phu-tay-ho"]
+    },
+    {
+      "key": "war_invalids_day", "calendar": "solar", "month": 7, "day": 27, "duration_days": 1, "kind": "observance",
+      "name_vi": "Ngày Thương binh – Liệt sĩ 27/7", "name_en": "War Invalids and Martyrs' Day",
+      "description_vi": "Ngày tri ân thương binh, liệt sĩ; nhiều nơi thắp nến tri ân buổi tối.",
+      "description_en": "A day of gratitude to war invalids and martyrs, with candle-lighting ceremonies in the evening.",
+      "suggestion_vi": "Tham quan Bảo tàng Lịch sử Quân sự hoặc Nhà tù Hỏa Lò.",
+      "suggestion_en": "Visit the Vietnam Military History Museum or Hoa Lo Prison.",
+      "place_slugs": ["vietnam-military-history-museum", "hoa-lo-prison"]
+    },
+    {
+      "key": "august_revolution", "calendar": "solar", "month": 8, "day": 19, "duration_days": 1, "kind": "observance",
+      "name_vi": "Cách mạng Tháng Tám 19/8", "name_en": "August Revolution Day",
+      "description_vi": "Kỷ niệm Tổng khởi nghĩa giành chính quyền ở Hà Nội năm 1945, tại Nhà hát Lớn.",
+      "description_en": "Marks the 1945 uprising in Hanoi, centred on the Opera House square.",
+      "suggestion_vi": "Ghé Nhà hát Lớn và Bảo tàng Lịch sử Quốc gia gần đó.",
+      "suggestion_en": "Visit the Opera House and the nearby National Museum of History.",
+      "place_slugs": ["hanoi-opera-house-stop", "national-history-museum"]
+    },
+    {
+      "key": "national_day", "calendar": "solar", "month": 9, "day": 2, "duration_days": 1, "kind": "public_holiday",
+      "name_vi": "Quốc khánh 2/9", "name_en": "National Day",
+      "description_vi": "Ngày nghỉ lễ chính thức (cộng thêm một ngày liền kề do Chính phủ công bố hằng năm). Quảng trường Ba Đình là tâm điểm.",
+      "description_en": "Official public holiday (plus an adjacent day announced each year). Ba Dinh Square is the focal point.",
+      "suggestion_vi": "Xem cờ hoa ở Ba Đình, pháo hoa buổi tối; tránh khu vực Lăng vào giờ cao điểm.",
+      "suggestion_en": "See the flags at Ba Dinh and the evening fireworks; avoid the Mausoleum area at peak times.",
+      "place_slugs": ["national-day-hanoi", "ho-chi-minh-mausoleum"]
+    },
+    {
+      "key": "mid_autumn", "calendar": "lunar", "month": 8, "day": 15, "duration_days": 1, "kind": "traditional",
+      "name_vi": "Tết Trung thu", "name_en": "Mid-Autumn Festival",
+      "description_vi": "Rằm tháng 8 âm lịch, phố Hàng Mã rực rỡ đèn lồng, trẻ em rước đèn phá cỗ.",
+      "description_en": "The full moon of the eighth lunar month, when Hang Ma Street glows with lanterns and children parade with lights.",
+      "suggestion_vi": "Dạo phố Hàng Mã buổi tối, thử bánh nướng bánh dẻo; phố rất đông những ngày sát rằm.",
+      "suggestion_en": "Walk Hang Ma Street in the evening and try mooncakes; it is packed in the days before the full moon.",
+      "place_slugs": ["hang-ma-mid-autumn", "old-quarter-walk"]
+    },
+    {
+      "key": "capital_liberation", "calendar": "solar", "month": 10, "day": 10, "duration_days": 1, "kind": "observance",
+      "name_vi": "Ngày Giải phóng Thủ đô 10/10", "name_en": "Capital Liberation Day",
+      "description_vi": "Kỷ niệm ngày tiếp quản Thủ đô năm 1954, thường có hoạt động văn hóa ở Hồ Gươm và Hoàng thành.",
+      "description_en": "Marks the 1954 takeover of the capital, often with cultural events at Hoan Kiem Lake and the Imperial Citadel.",
+      "suggestion_vi": "Dạo Hồ Gươm, ghé Hoàng thành Thăng Long và Bảo tàng Hà Nội.",
+      "suggestion_en": "Walk around Hoan Kiem Lake and visit the Imperial Citadel and Hanoi Museum.",
+      "place_slugs": ["hoan-kiem-lake", "imperial-citadel", "hanoi-museum"]
+    },
+    {
+      "key": "vietnamese_womens_day", "calendar": "solar", "month": 10, "day": 20, "duration_days": 1, "kind": "observance",
+      "name_vi": "Ngày Phụ nữ Việt Nam 20/10", "name_en": "Vietnamese Women's Day",
+      "description_vi": "Ngày tôn vinh phụ nữ Việt Nam; hoa và quà tặng bán khắp phố.",
+      "description_en": "A day honouring Vietnamese women; flowers and gifts are sold all over town.",
+      "suggestion_vi": "Ghé Bảo tàng Phụ nữ Việt Nam, chợ hoa Quảng Bá, làng hoa Tây Tựu.",
+      "suggestion_en": "Visit the Vietnamese Women's Museum, Quang Ba flower market or Tay Tuu flower village.",
+      "place_slugs": ["vietnamese-womens-museum", "quang-ba-flower-market", "tay-tuu-flower-village"]
+    },
+    {
+      "key": "teachers_day", "calendar": "solar", "month": 11, "day": 20, "duration_days": 1, "kind": "observance",
+      "name_vi": "Ngày Nhà giáo Việt Nam 20/11", "name_en": "Vietnamese Teachers' Day",
+      "description_vi": "Ngày tri ân thầy cô; Văn Miếu – Quốc Tử Giám, trường đại học đầu tiên của Việt Nam, rất đông.",
+      "description_en": "A day thanking teachers; the Temple of Literature, Vietnam's first university, gets very busy.",
+      "suggestion_vi": "Tham quan Văn Miếu buổi sáng sớm; mua sách ở Phố Sách Hà Nội.",
+      "suggestion_en": "Visit the Temple of Literature early in the morning and browse Hanoi Book Street.",
+      "place_slugs": ["temple-of-literature", "hanoi-book-street"]
+    },
+    {
+      "key": "christmas", "calendar": "solar", "month": 12, "day": 24, "duration_days": 2, "kind": "observance",
+      "name_vi": "Giáng sinh", "name_en": "Christmas",
+      "description_vi": "Đêm 24/12 Nhà thờ Lớn và nhà thờ Cửa Bắc rất đông, phố cổ trang trí đèn.",
+      "description_en": "On 24 December St Joseph's Cathedral and Cua Bac Church are packed and the Old Quarter is lit up.",
+      "suggestion_vi": "Đi sớm trước 19 giờ để vào khu Nhà thờ Lớn; khu phố cổ cấm xe một số tuyến.",
+      "suggestion_en": "Arrive before 7 pm for St Joseph's Cathedral; some Old Quarter streets close to traffic.",
+      "place_slugs": ["christmas-old-quarter", "st-joseph-cathedral"]
+    },
+    {
+      "key": "new_year_eve", "calendar": "solar", "month": 12, "day": 31, "duration_days": 1, "kind": "observance",
+      "name_vi": "Đêm Giao thừa dương lịch", "name_en": "New Year's Eve",
+      "description_vi": "Đêm 31/12 có chương trình nghệ thuật và đếm ngược ở quảng trường Đông Kinh Nghĩa Thục.",
+      "description_en": "On 31 December there are concerts and a countdown at Dong Kinh Nghia Thuc Square by Hoan Kiem Lake.",
+      "suggestion_vi": "Đến Hồ Gươm trước 22 giờ; mạng điện thoại và giao thông rất chậm quanh nửa đêm.",
+      "suggestion_en": "Reach Hoan Kiem Lake before 10 pm; mobile data and traffic slow down around midnight.",
+      "place_slugs": ["new-year-countdown-hoan-kiem", "hoan-kiem-lake"]
+    }
+  ]
+}

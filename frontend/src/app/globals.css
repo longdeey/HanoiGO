@@ -1,0 +1,421 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Tokens: "Biển hiệu phố" (spec §6.9) ─────────────────────────────── */
+:root {
+  --paper: #FFFFFF;          --paper-sunken: #F3F3EF;
+  --ink: #1C1E26;            --ink-muted: #555A68;
+  --line: #D9DAD3;           --line-strong: #8E92A0;
+  --sign-red: #C8231E;       --sign-red-press: #A51C18;  --sign-red-soft: #FDECEA;
+  --sign-red-text: #C8231E;
+  --sign-blue: #1F4FA3;      --sign-blue-soft: #E8EEF9;
+  --wall-yellow: #F2C14E;    --wall-yellow-soft: #FFF3CC; --warn-ink: #7A4E00;
+  --moss: #2F6B4F;           --moss-soft: #E3F0E8;
+  --focus: var(--sign-blue);
+  --day-1: #1F4FA3; --day-2: #2F6B4F; --day-3: #A86A00; --day-4: #7A3E7A; --day-5: #0F6B78;
+  --cat-attraction: var(--sign-blue); --cat-food: var(--moss);
+  --cat-transport: #A86A00;           --cat-other: var(--line-strong);
+  /* Red leads the brand: top bar, primary actions, festival dates. */
+  --hero-red: #C8231E;       --hero-red-deep: #8F1612;
+  /* Hanoi street-name signs: white letters on this blue in every theme. */
+  --street-blue: #1A4D9C;    --street-blue-deep: #0F3470;
+  /* group labels on Trips: green for past trips, dark ink on wall-yellow */
+  --plate-green: #2F6B4F;    --plate-ink: #1C1E26;
+  /* The home collage table and its newspaper clippings. */
+  --newsprint: #EFE8D8; --table-dim: rgb(0 0 0 / 0);      --clipping: #FBF8F0;        --clipping-ink: #1C1E26;
+
+  --radius-tag: 2px; --radius-sign: 4px; --radius-control: 8px;
+  --radius-card: 12px; --radius-sheet: 20px;
+
+  --dur-fade: 150ms; --dur-tap: 100ms; --dur-small: 200ms; --dur-medium: 300ms;
+  --dur-large: 500ms; --dur-route: 800ms; --dur-moment: 1000ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --ease-settle: cubic-bezier(0, 0, 0, 1);
+
+  --topbar-h: 56px;
+  --bottomnav-h: calc(64px + env(safe-area-inset-bottom));
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #15171C; --paper-sunken: #1F222A;
+    --ink: #EDEEF2;   --ink-muted: #A9ADBA;
+    --line: #2E323C;  --line-strong: #7A7F8F;
+    --sign-red: #D6352B; --sign-red-press: #B32A21;
+    --sign-red-soft: #3B1A18; --sign-red-text: #FF7A6E;
+    --sign-blue: #8FB2F5; --sign-blue-soft: #1B2840;
+    --wall-yellow-soft: #3A2F12; --warn-ink: #F2C14E;
+    --moss: #6FC197; --moss-soft: #17301F;
+    --day-1: #8FB2F5; --day-2: #6FC197; --day-3: #E0A43A; --day-4: #D79BD7; --day-5: #5CC4D1;
+    --cat-transport: #E0A43A;
+    --hero-red: #A61F1A; --hero-red-deep: #6E140F; --street-blue-deep: #0A2552;
+    --newsprint: #221E19; --table-dim: rgb(18 14 10 / 0.55); --clipping: #F4EFE3;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #15171C; --paper-sunken: #1F222A;
+  --ink: #EDEEF2;   --ink-muted: #A9ADBA;
+  --line: #2E323C;  --line-strong: #7A7F8F;
+  --sign-red: #D6352B; --sign-red-press: #B32A21;
+  --sign-red-soft: #3B1A18; --sign-red-text: #FF7A6E;
+  --sign-blue: #8FB2F5; --sign-blue-soft: #1B2840;
+  --wall-yellow-soft: #3A2F12; --warn-ink: #F2C14E;
+  --moss: #6FC197; --moss-soft: #17301F;
+  --day-1: #8FB2F5; --day-2: #6FC197; --day-3: #E0A43A; --day-4: #D79BD7; --day-5: #5CC4D1;
+  --cat-transport: #E0A43A;
+  --hero-red: #A61F1A; --hero-red-deep: #6E140F; --street-blue-deep: #0A2552;
+  --newsprint: #221E19; --table-dim: rgb(18 14 10 / 0.55); --clipping: #F4EFE3;
+  color-scheme: dark;
+}
+
+@media (min-width: 1024px) {
+  :root { --topbar-h: 64px; --bottomnav-h: 0px; }
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────── */
+html {
+  /* Focused elements are never hidden under the sticky bars (WCAG 2.4.11). */
+  scroll-padding-top: calc(var(--topbar-h) + 16px);
+  scroll-padding-bottom: calc(var(--bottomnav-h) + 16px);
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-archivo), Arial, sans-serif;
+  font-size: 16px;
+  line-height: 26px;
+  font-feature-settings: "kern";
+}
+h1, h2, h3, h4 { text-wrap: balance; }
+p, li { text-wrap: pretty; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+/* Focus moved by code to announce a new step or section (tabindex="-1") is
+   not a control the keyboard can reach, so it shows no ring. */
+[tabindex="-1"]:focus-visible { outline: none; }
+/* On the red bar the focus ring is white, so it stays visible (3:1). */
+.on-red :focus-visible { outline-color: #FFFFFF; }
+::selection { background: var(--sign-blue-soft); color: var(--ink); }
+.tnum { font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: no-preference) {
+  .lang-switch { animation: lang-switch var(--dur-fade) linear; }
+}
+@keyframes lang-switch { from { opacity: 0.35; } to { opacity: 1; } }
+
+/* ── Type scale, ratio 1.25 on 16 px (spec §6.2) ──────────────────────── */
+.type-display-sign { font-family: var(--font-phudu); font-weight: 800; font-size: 49px; line-height: 57px; letter-spacing: -0.01em; }
+.type-display { font-family: var(--font-phudu); font-weight: 700; font-size: 39px; line-height: 46px; letter-spacing: -0.005em; }
+.type-h1 { font-weight: 700; font-size: 31px; line-height: 38px; }
+.type-h2 { font-weight: 650; font-size: 25px; line-height: 32px; }
+.type-h3 { font-weight: 600; font-size: 20px; line-height: 28px; }
+.type-money-l { font-weight: 700; font-size: 31px; line-height: 36px; font-stretch: 112%; font-variant-numeric: tabular-nums; }
+.type-body { font-size: 16px; line-height: 26px; }
+.type-body-read { font-size: 18px; line-height: 30px; }
+.type-small { font-size: 14px; line-height: 22px; }
+.type-caption { font-size: 13px; line-height: 20px; }
+.type-time { font-weight: 600; font-size: 15px; line-height: 20px; font-stretch: 88%; font-variant-numeric: tabular-nums; }
+@media (min-width: 1024px) {
+  body { font-size: 17px; line-height: 28px; }
+  .type-display-sign { font-size: 76px; line-height: 88px; }
+  .type-display { font-size: 61px; line-height: 72px; }
+  .type-h1 { font-size: 39px; line-height: 46px; }
+  .type-h2 { font-size: 31px; line-height: 38px; }
+  .type-money-l { font-size: 39px; line-height: 44px; }
+  .type-body { font-size: 17px; line-height: 28px; }
+  .type-body-read { font-size: 19px; line-height: 32px; }
+}
+
+/* M02: page entrance (opacity only when motion is reduced) */
+.page-enter { animation: page-enter-fade var(--dur-fade) linear both; }
+@media (prefers-reduced-motion: no-preference) {
+  .page-enter { animation: page-enter var(--dur-medium) var(--ease-enter) both; }
+}
+@keyframes page-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes page-enter-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── Signboard: a Hanoi street-name plate, white on street blue ───────── */
+.signboard {
+  position: relative;
+  border-radius: 8px;
+  padding: 5px;
+  background: var(--street-blue);
+  color: #FFFFFF;
+  box-shadow: 0 3px 0 var(--street-blue-deep), 0 12px 24px -12px rgb(10 30 70 / 0.5);
+}
+.signboard-yellow { background: var(--street-blue); color: #FFFFFF; }
+.signboard-inner {
+  border: 2px solid #FFFFFF;
+  border-radius: 4px;
+  padding: 12px 16px 16px;
+  text-align: center;
+}
+@media (min-width: 1024px) { .signboard-inner { padding: 20px 28px 24px; } }
+.sign-letters { text-transform: uppercase; color: #FFFFFF; }
+
+/* Small street plate for section titles and photo captions. */
+.street-plate {
+  display: inline-flex;
+  border-radius: 6px;
+  padding: 3px;
+  background: var(--street-blue);
+  color: #FFFFFF;
+  box-shadow: 0 2px 0 var(--street-blue-deep);
+  font-family: var(--font-phudu), "Arial Narrow", sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 25px;
+  line-height: 32px;
+}
+.street-plate > span { border: 2px solid #FFFFFF; border-radius: 4px; padding: 2px 12px 3px; }
+@media (min-width: 1024px) { .street-plate { font-size: 31px; line-height: 38px; } }
+.street-plate-sm { font-size: 13px; line-height: 16px; padding: 2px; border-radius: 4px; box-shadow: none; font-family: var(--font-archivo), Arial, sans-serif; font-weight: 700; letter-spacing: 0; }
+.street-plate-sm > span { border-width: 1px; border-radius: 3px; padding: 2px 6px; }
+.street-plate-lg { font-size: 39px; line-height: 46px; }
+@media (min-width: 1024px) { .street-plate-lg { font-size: 49px; line-height: 57px; } }
+
+/* M03: the sign is "painted" once per session: the frame draws, then the
+   lettering is revealed left to right like a brush stroke. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-sign-paint="1"] .signboard[data-paint-target] { animation: sign-frame var(--dur-medium) var(--ease-enter) both; }
+  :root[data-sign-paint="1"] .signboard[data-paint-target] .sign-letters {
+    animation: sign-brush 700ms var(--ease-enter) 300ms both;
+  }
+}
+@keyframes sign-frame { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes sign-brush { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+
+/* ── Controls ────────────────────────────────────────────────────────── */
+.press { transition: transform var(--dur-tap) var(--ease-standard), background-color var(--dur-tap) var(--ease-standard); }
+@media (prefers-reduced-motion: no-preference) {
+  .press:active:not(:disabled) { transform: scale(0.97); }
+}
+/* In the components layer, so utilities on a field (larger text, room for a
+   unit suffix) win over these defaults. */
+@layer components {
+  .field {
+    width: 100%;
+    min-height: 48px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-control);
+    padding: 10px 14px;
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+  }
+  .field::placeholder { color: var(--ink-muted); opacity: 1; }
+  .field[aria-invalid="true"] { border-color: var(--sign-red-text); border-width: 2px; }
+}
+
+/* ── Skeleton (M27): opacity pulse, no shimmer gradient ───────────────── */
+.skeleton { background: var(--paper-sunken); border-radius: var(--radius-control); }
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton { animation: pulse 1200ms ease-in-out infinite; }
+}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+/* M24: slow pulse for "happening now" */
+@media (prefers-reduced-motion: no-preference) {
+  .live-dot { animation: live 2000ms ease-in-out infinite; }
+}
+@keyframes live { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* M13: the day's line grows from the top */
+@media (prefers-reduced-motion: no-preference) {
+  .route-grow { transform-origin: 50% 0; animation: route-grow var(--dur-route) var(--ease-enter) both; }
+}
+@keyframes route-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+/* M17: a changed cell flashes wall-yellow, then fades over 1.2 s */
+.flash-change { animation: flash-change 1200ms var(--ease-standard) both; }
+@media (prefers-reduced-motion: reduce) { .flash-change { animation: none; background-color: var(--wall-yellow-soft); } }
+@keyframes flash-change { from { background-color: var(--wall-yellow-soft); } to { background-color: transparent; } }
+
+/* M22: reading progress, scroll-driven where supported */
+.read-progress { transform: scaleX(0); transform-origin: 0 50%; }
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .read-progress { animation: grow linear both; animation-timeline: scroll(root); }
+    .reader-hero img { animation: hero-settle linear both; animation-timeline: scroll(root); animation-range: 0 60vh; }
+  }
+}
+@keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+/* M22: each timeline milestone lights up as it scrolls into view. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .milestone { animation: milestone-in linear both; animation-timeline: view(); animation-range: entry 10% cover 35%; }
+    .milestone-dot { animation: milestone-dot linear both; animation-timeline: view(); animation-range: entry 10% cover 35%; }
+  }
+}
+@keyframes milestone-in { from { opacity: 0.45; } to { opacity: 1; } }
+@keyframes milestone-dot { from { background-color: var(--paper); } to { background-color: var(--ink); } }
+@keyframes hero-settle { from { transform: scale(1.06); } to { transform: scale(1); } }
+
+/* M29: story photo zoom on hover, mouse only */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .photo-zoom img { transition: transform var(--dur-medium) var(--ease-standard); }
+  .photo-zoom:hover img { transform: scale(1.03); }
+}
+
+/* Gradient allowed only under text set on a photo (spec §6.6) */
+.photo-scrim { background: linear-gradient(to top, rgb(0 0 0 / 0.55), transparent 60%); }
+
+/* ── Map (spec §6.7) ─────────────────────────────────────────────────── */
+.map-neutral .leaflet-tile-pane { filter: saturate(0.9) contrast(0.96) brightness(1.02); }
+:root[data-theme="dark"] .map-neutral .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.8); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .map-neutral .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.8); }
+}
+.map-neutral.leaflet-container { font-family: var(--font-archivo), Arial, sans-serif; background: #E6E6E3; }
+.map-neutral .leaflet-control-attribution { font-size: 12px; }
+/* Map zoom buttons: level-1 elevation, 8 px corners, 44 px targets (§6.4, §9). */
+.map-neutral .leaflet-bar, .map-neutral.leaflet-touch .leaflet-bar {
+  border: 0; border-radius: var(--radius-control); box-shadow: 0 2px 8px rgb(28 30 38 / 0.16); overflow: hidden;
+}
+.map-neutral .leaflet-bar a, .map-neutral.leaflet-touch .leaflet-bar a {
+  width: 44px; height: 44px; line-height: 44px; font-size: 22px;
+  background: var(--paper); color: var(--ink); border-bottom: 1px solid var(--line);
+}
+.map-neutral .leaflet-bar a:last-child { border-bottom: 0; }
+.map-neutral .leaflet-bar a:hover { background: var(--paper-sunken); }
+.station-icon { display: grid; place-items: center; width: 44px; height: 44px; }
+.station {
+  position: relative; display: grid; place-items: center;
+  width: 28px; height: 28px; border-radius: 9999px;
+  background: #FFFFFF; color: #1C1E26;
+  border: 3px solid var(--station-color, var(--day-1));
+  font: 700 13px/1 var(--font-archivo), Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+  transition: transform var(--dur-small) var(--ease-standard);
+}
+.station-must { background: var(--sign-red); border-color: var(--sign-red); color: #FFFFFF; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px var(--sign-red); }
+/* Ink square: dark on light paper, light on dark paper (like the ink buttons). */
+.station-start { border-radius: 4px; background: var(--hero-red); border-color: var(--hero-red); color: #FFFFFF; }
+.station-story::after {
+  content: ""; position: absolute; top: -4px; right: -4px;
+  width: 8px; height: 8px; border-radius: 9999px;
+  background: var(--wall-yellow); border: 1.5px solid #1C1E26;
+}
+/* M13: stations appear one after another as the day's line is drawn.
+   "backwards" fill only, so the selected-station scale still applies after. */
+@media (prefers-reduced-motion: no-preference) {
+  .station-appear { animation: station-appear var(--dur-medium) var(--ease-enter) backwards; }
+}
+@keyframes station-appear { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: none; } }
+.station-active { box-shadow: 0 0 0 8px color-mix(in srgb, var(--station-color, var(--day-1)) 25%, transparent); }
+@media (prefers-reduced-motion: no-preference) { .station-active { transform: scale(1.2); } }
+.station-must.station-active { box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px var(--sign-red), 0 0 0 10px color-mix(in srgb, var(--sign-red) 25%, transparent); }
+
+/* Pin picker (M08) */
+.pin { transition: transform var(--dur-medium) cubic-bezier(0.34, 1.56, 0.64, 1); }
+.pin[data-lifted="true"] { transform: translateY(-8px); transition: transform var(--dur-small) var(--ease-standard); }
+@media (prefers-reduced-motion: reduce) { .pin { transition-timing-function: var(--ease-standard); } }
+.pin-shadow { transition: transform var(--dur-small) var(--ease-standard), opacity var(--dur-small); }
+.pin[data-lifted="true"] + .pin-shadow { transform: scale(1.4); opacity: 0.5; }
+
+/* Horizontal rails with snapping (only these scroll sideways) */
+.rail { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
+.rail::-webkit-scrollbar { display: none; }
+.rail > * { scroll-snap-align: start; flex: none; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* ── Home collage: Hanoi photos cut out like newspaper clippings ─────── */
+/* The clippings lie on a red-bordered sedge mat (back.png). It is drawn as a
+   nine-slice frame, so any size of area keeps the corner ornaments as drawn,
+   repeats the border ornaments along the edges and fills the middle with the
+   weave. --mat scales the frame; the padding keeps content off the red border.
+   Half-size image on phones; dimmed in dark mode so it does not glare. */
+.collage-table {
+  --mat: 0.2;
+  --mat-src: url("/images/back-mat-sm.jpg"); --mat-slice: 137 170;
+  position: relative; isolation: isolate;
+  padding: calc(120px * var(--mat)) calc(140px * var(--mat));
+  background-color: var(--newsprint);
+}
+@media (min-width: 768px) {
+  .collage-table { --mat-src: url("/images/back-mat.jpg"); --mat-slice: 275 340; }
+}
+.collage-table::before, .collage-table::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+.collage-table::before {
+  border-style: solid; border-color: transparent;
+  border-width: calc(275px * var(--mat)) calc(340px * var(--mat));
+  border-image-source: var(--mat-src); border-image-slice: var(--mat-slice) fill; border-image-repeat: round;
+}
+.collage-table::after { background: var(--table-dim); }
+/* the home section is the widest mat: a broader border */
+.collage-table-hero { --mat: 0.24; }
+@media (min-width: 640px) { .collage-table-hero { --mat: 0.32; } }
+@media (min-width: 1024px) { .collage-table-hero { --mat: 0.42; } }
+.collage-table-strip { --mat: 0.14; }
+.collage-canvas { position: relative; width: 100%; container-type: inline-size; }
+/* The clipping carries position, tilt and a shadow that follows the torn edge;
+   the paper inside carries the torn edge, so the tape on top is not cut off.
+   Every size is in canvas units (--u = one design pixel), so the composition
+   scales as a whole when the page is zoomed or resized. */
+.clipping {
+  position: absolute;
+  transform: rotate(var(--tilt, 0deg));
+  filter: drop-shadow(0 1px 1px rgb(28 30 38 / 0.25)) drop-shadow(0 6px 8px rgb(28 30 38 / 0.22));
+}
+.clipping-paper {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  background: var(--clipping);
+  padding: calc(var(--u, 1px) * 7) calc(var(--u, 1px) * 7) 0;
+  /* torn paper edge */
+  clip-path: polygon(0% 2%, 6% 0%, 14% 1.5%, 23% 0%, 34% 1%, 46% 0%, 58% 1.5%, 70% 0%, 82% 1%, 93% 0%, 100% 1.5%,
+    99% 14%, 100% 30%, 98.5% 47%, 100% 63%, 99% 80%, 100% 97%, 92% 100%, 80% 98.5%, 67% 100%, 54% 98.5%,
+    41% 100%, 28% 98.5%, 15% 100%, 4% 98.5%, 0% 100%, 1% 84%, 0% 66%, 1.5% 48%, 0% 31%, 1% 15%);
+}
+.clipping-photo { position: relative; overflow: hidden; flex: 1 1 auto; min-height: 0; }
+/* The place name sits on its own strip of paper under the photo, never on it. */
+.clipping-caption {
+  flex: none;
+  padding: calc(var(--u, 1px) * 5) calc(var(--u, 1px) * 2) calc(var(--u, 1px) * 6);
+  font: 600 max(10.5px, calc(var(--u, 1px) * 13)) / 1.25 var(--font-archivo), Arial, sans-serif;
+  color: var(--clipping-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.clipping-text { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; color: var(--clipping-ink); padding: calc(var(--u, 1px) * 4) calc(var(--u, 1px) * 4) calc(var(--u, 1px) * 10); }
+.clipping-headline { font-family: var(--font-phudu), "Arial Narrow", sans-serif; font-weight: 800; text-transform: uppercase; line-height: 1.12; }
+.clipping-text .rule { flex: none; height: calc(var(--u, 1px) * 3); background: var(--clipping-ink); margin: calc(var(--u, 1px) * 8) 0; }
+/* body copy, drawn as grey lines: it fills what the headline leaves */
+.clipping-text .columns { flex: 1 1 auto; min-height: 0; background: repeating-linear-gradient(to bottom, rgb(28 30 38 / 0.28) 0 calc(var(--u, 1px) * 2), transparent calc(var(--u, 1px) * 2) calc(var(--u, 1px) * 7)); }
+.tape {
+  position: absolute; z-index: 1; top: calc(var(--u, 1px) * -10); left: 50%; width: calc(var(--u, 1px) * 70); height: calc(var(--u, 1px) * 20);
+  transform: translateX(-50%) rotate(var(--tape-tilt, -3deg));
+  background: rgb(242 193 78 / 0.6);
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* the clippings drop onto the table one after another, once */
+  .clipping { animation: clipping-drop 600ms var(--ease-enter) backwards; animation-delay: var(--delay, 0ms); }
+  .clipping { transition: transform var(--dur-small) var(--ease-standard); }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .clipping:hover { transform: rotate(0deg) translateY(-6px) scale(1.03); z-index: 5; }
+}
+@keyframes clipping-drop {
+  from { opacity: 0; transform: translateY(-24px) rotate(calc(var(--tilt, 0deg) * 3)) scale(1.08); }
+  to { opacity: 1; transform: rotate(var(--tilt, 0deg)); }
+}
+
+/* Photo cards in the strip and story grid: a white print border, lifts on hover. */
+.print { color: var(--clipping-ink); background: var(--clipping); padding: 6px; box-shadow: 0 1px 2px rgb(28 30 38 / 0.2), 0 8px 16px -10px rgb(28 30 38 / 0.4); transform: rotate(var(--tilt, 0deg)); }
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .print { transition: transform var(--dur-small) var(--ease-standard); }
+  .print:hover, .print:focus-within { transform: rotate(0deg) translateY(-4px); }
+}
+
+/* Tear-off calendar page for festival dates (red, like a Vietnamese lịch bloc). */
+.calendar-page { border-radius: var(--radius-card); overflow: hidden; background: var(--paper); border: 1px solid var(--line); }
+.calendar-page-head { background: var(--hero-red); color: #FFFFFF; text-align: center; font-weight: 700; font-size: 13px; line-height: 20px; padding: 4px 8px; }
+.calendar-page-day { color: var(--sign-red-text); font-family: var(--font-phudu), "Arial Narrow", sans-serif; font-weight: 800; font-size: 49px; line-height: 57px; text-align: center; }
+/* Prints are light paper in both themes: their text keeps light-paper colours. */
+.print-muted { color: #555A68; }
+.print-link { color: #1F4FA3; }

@@ -1,0 +1,21 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+*.tsbuildinfo
+node_modules/
+.next/
+coverage/
+test-results/
+playwright-report/
+backend/data/osm_hanoi_raw.json
+# Local Windows virtualenv, local env files and scratch scripts
+.venv-win/
+.env.local
+frontend/.env.local
+*.tmp.*
+# Raw source material (Word files and full-size photos); the web uses the
+# resized copies in frontend/public/images/stories
+CÂU CHUYỆN HÀ NỘI/
