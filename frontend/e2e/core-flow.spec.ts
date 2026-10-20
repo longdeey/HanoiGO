@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { signIn } from "./auth";
+
 /** Go to the next form step and wait until it is shown. */
 async function nextStep(page: Page, to: number) {
   await page.getByRole("button", { name: "Tiếp tục" }).click();
@@ -21,7 +23,8 @@ async function fakeRoadGeometry(page: Page) {
   });
 }
 
-test("create, compare, replace, reduce cost, and share", async ({ page }) => {
+test("create, compare, replace, reduce cost, and share", async ({ page, request }) => {
+  await signIn(page, request);
   await fakeRoadGeometry(page);
   const generationStatuses: number[] = [];
   page.on("response", (response) => {

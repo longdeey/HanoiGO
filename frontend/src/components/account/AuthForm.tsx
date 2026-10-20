@@ -67,6 +67,6 @@ export function AuthForm({ onDone }: { onDone?: (result: AuthResponse) => void }
     {mutation.isError && <p role="alert" className="type-small text-sign-red-text">{apiErrorMessage(mutation.error, tr)}</p>}
     <Button type="submit" variant="primary" className="w-full" loading={mutation.isPending}>{tr(mode === "login" ? "Sign in" : "Create account")}</Button>
     </div>
-    <p className="type-small text-ink-muted">{tr("Your account is for writing reviews. Trips stay saved only in this browser.")}</p>
+    <p className="type-small text-ink-muted">{tr("Your trips and reviews are saved to your account.")}</p>
   </form>;
 }

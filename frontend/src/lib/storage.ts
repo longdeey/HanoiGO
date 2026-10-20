@@ -74,6 +74,19 @@ export function savedTripIds(): string[] {
   return ids;
 }
 
+/** The owner tokens of trips made on this device (to save them to an account). */
+export function deviceTrips(): { tripId: string; ownerToken: string }[] {
+  return savedTripIds().flatMap((tripId) => {
+    const token = ownerToken(tripId);
+    return token ? [{ tripId, ownerToken: token }] : [];
+  });
+}
+
+/** Signing out leaves no trip of the account on this device. */
+export function forgetAllTrips(): void {
+  for (const tripId of savedTripIds()) forgetTrip(tripId);
+}
+
 export function forgetTrip(tripId: string): void {
   const storage = local();
   write(storage, OWNER_PREFIX + tripId, null);

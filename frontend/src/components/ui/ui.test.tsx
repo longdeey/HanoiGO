@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React, { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { option, renderApp } from "@/test/render";
@@ -73,6 +73,41 @@ describe("MoneyInput editing", () => {
     await user.keyboard("10000000");
     expect(screen.getByRole("status").textContent).toBe("10000000");
     expect(input.value).toBe("10.000.000");
+  });
+
+  it("deletes the digit beside a separator and keeps the caret in place", async () => {
+    const user = userEvent.setup();
+    renderApp(<Money language="vi" />);
+    const input = screen.getByLabelText("Budget") as HTMLInputElement;
+    await user.click(input);
+    input.setSelectionRange(2, 2); // "3.|000.000"
+    await user.keyboard("{Backspace}");
+    expect(input.value).toBe(""); // "000000" is no amount at all
+    cleanup();
+    renderApp(<Money language="vi" />);
+    const again = screen.getByLabelText("Budget") as HTMLInputElement;
+    await user.click(again);
+    again.setSelectionRange(6, 6); // "3.000.|000"
+    await user.keyboard("{Backspace}");
+    expect(again.value).toBe("300.000");
+    expect(again.selectionStart).toBe(3);
+    // A letter changes nothing, and the caret stays where it was.
+    again.setSelectionRange(1, 1);
+    await user.keyboard("x");
+    expect(again.value).toBe("300.000");
+    expect(again.selectionStart).toBe(1);
+  });
+
+  it("waits for a Vietnamese input method to finish composing before regrouping", () => {
+    renderApp(<Money language="vi" />);
+    const input = screen.getByLabelText("Budget") as HTMLInputElement;
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: "3.000.0005" } });
+    expect(input.value).toBe("3.000.0005");
+    expect(screen.getByRole("status").textContent).toBe("3000000");
+    fireEvent.compositionEnd(input, { target: { value: "3.000.0005" } });
+    expect(input.value).toBe("30.000.005");
+    expect(screen.getByRole("status").textContent).toBe("30000005");
   });
 });
 

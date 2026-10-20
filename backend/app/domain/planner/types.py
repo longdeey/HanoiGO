@@ -79,6 +79,8 @@ class PlaceCandidate:
     highlight_level: Literal["standard", "notable", "must_see"] = "standard"
     rating_average: float = 0.0
     rating_count: int = 0
+    # Shown name (Vietnamese, then English); tells a dessert shop from a restaurant.
+    name: str = ""
 
 
 def candidate_from_place(place: object) -> PlaceCandidate:
@@ -103,4 +105,5 @@ def candidate_from_place(place: object) -> PlaceCandidate:
         highlight_level=place.highlight_level,
         rating_average=sum(ratings) / len(ratings) if ratings else 0.0,
         rating_count=len(ratings),
+        name=f"{place.name_vi} {place.name_en}",
     )

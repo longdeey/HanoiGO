@@ -19,3 +19,5 @@ frontend/.env.local
 # Raw source material (Word files and full-size photos); the web uses the
 # resized copies in frontend/public/images/stories
 CÂU CHUYỆN HÀ NỘI/
+# Python build output (pip install .)
+backend/build/

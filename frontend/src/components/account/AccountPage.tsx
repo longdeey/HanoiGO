@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CaretDown, UserCircle } from "@phosphor-icons/react";
 
 import { usePrefs, type Theme } from "@/lib/prefs";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Segmented } from "@/components/ui/Controls";
 import { useToast } from "@/components/ui/Toast";
 import { AuthForm } from "./AuthForm";
+import { safeNext } from "./SignInGate";
 
 const THEME_LABELS: Record<Theme, string> = { system: "Match device", light: "Light", dark: "Dark" };
 
@@ -18,6 +20,10 @@ export function AccountPage() {
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const { tr, auth, signOut, language, setLanguage, theme, setTheme } = usePrefs();
   const toast = useToast();
+  const router = useRouter();
+  // Sent here from a page that needs an account (Plan, Trips): go back there once signed in.
+  const [next, setNext] = useState<string | null>(null);
+  useEffect(() => { setNext(safeNext(new URLSearchParams(window.location.search).get("next"))); }, []);
   usePageChrome({});
   return <div className="mx-auto max-w-xl px-4 pb-12 sm:px-6">
     <h1 className="type-h1 pt-4 lg:pt-8">{tr("Account")}</h1>
@@ -28,10 +34,15 @@ export function AccountPage() {
           <h2 id="signin-title" className="font-semibold">{auth.user.displayName}</h2>
           <p className="type-small text-ink-muted">{auth.user.email ?? auth.user.phone}</p>
         </div>
-        <Button variant="secondary" onClick={() => { signOut(); toast.show(tr("Signed out on this browser.")); }}>{tr("Sign out")}</Button>
+        <Button variant="secondary" onClick={() => { signOut(); toast.show(tr("Signed out. Your trips stay in your account.")); }}>{tr("Sign out")}</Button>
       </div> : <>
         <h2 id="signin-title" className="sr-only">{tr("Sign in")}</h2>
-        <AuthForm onDone={() => toast.show(tr("Signed in."), { tone: "success" })} />
+        {next && <p role="status" className="mb-4 rounded-control bg-sign-red-soft p-3 font-semibold text-sign-red-text">
+          {tr("Sign in or create an account to continue. Your trips are saved to your account, so you can open them on any device.")}</p>}
+        <AuthForm onDone={() => {
+          toast.show(tr("Signed in."), { tone: "success" });
+          if (next) router.replace(next);
+        }} />
       </>}
     </section>
     <section className="mt-12 space-y-6 border-t border-line pt-6" aria-labelledby="settings-title">

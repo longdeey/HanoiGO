@@ -9,9 +9,12 @@ from app.domain.planner.scheduling import (
     _neighbouring_orders,
     _schedule,
     build_day,
+    edge_minutes,
     gap_minutes,
     improve_route,
+    is_food_or_coffee,
     is_main_meal,
+    meal_rhythm_issues,
 )
 from app.domain.planner.types import candidate_from_place
 from app.domain.planner.validation import validate_days
@@ -80,13 +83,19 @@ def test_generated_days_have_no_shorter_valid_visiting_order() -> None:
                               and 11 * 60 <= item.start_minute < 14 * 60), None)
                 dinner = next((item.place for item in day.items if is_main_meal(item.place)
                                and item.start_minute >= 17 * 60), None)
+                breakfast = next((item.place for item in day.items if is_food_or_coffee(item.place)
+                                  and not is_main_meal(item.place) and item.start_minute < 11 * 60), None)
                 by_id = {stop.id: score_candidate(stop, constraints) for stop in stops}
                 ids = {stop.id for stop in stops}
                 for order in _neighbouring_orders(stops):
-                    trial = _schedule(day.day_number, day.date, order, by_id, constraints, lunch, dinner)
+                    trial = _schedule(day.day_number, day.date, order, by_id, constraints, lunch, dinner, breakfast)
                     if ({item.place.id for item in trial.items} != ids
                             or gap_minutes(trial) > gap_minutes(day)
-                            or _adjacent_meal_pairs(trial) > _adjacent_meal_pairs(day)):
+                            or _adjacent_meal_pairs(trial) > _adjacent_meal_pairs(day)
+                            or meal_rhythm_issues(trial, constraints) > meal_rhythm_issues(day, constraints)
+                            or edge_minutes(trial, constraints) > edge_minutes(day, constraints)
+                            # A shorter route can need a paid ride the budget has no room for.
+                            or option.cost.total - day.cost.total + trial.cost.total > constraints.budget_total):
                         continue
                     assert trial.distance_km >= day.distance_km - 0.3, (
                         values, option.option_type, day.day_number,

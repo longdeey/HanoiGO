@@ -1,3 +1,4 @@
+import secrets
 from datetime import date, time, timedelta
 from math import ceil
 
@@ -21,7 +22,7 @@ from app.domain.holidays import holidays_between
 from app.domain.planner.config import BUDGET_TARGET_TOLERANCE, STAY_NEARBY_RADIUS_KM
 from app.domain.planner.constraints import distance_km
 from app.domain.planner.planner import PlannedItinerary, generate_options
-from app.domain.planner.scheduling import PlannedDay, minute_of_day, opening_start
+from app.domain.planner.scheduling import PlannedDay, RainForecast, minute_of_day, opening_start
 from app.domain.planner.types import TripConstraints, candidate_from_place
 from app.domain.stories import story_for_place
 from app.infrastructure.db.models import Itinerary, ItineraryDay, ItineraryItem, Place, TripRequest
@@ -80,8 +81,32 @@ def _to_time(minute: int) -> time:
     return time(minute // 60, minute % 60)
 
 
+def account_trips(session: Session, user_id: str) -> list[TripRequest]:
+    """The trips saved to an account, newest first."""
+    return list(session.scalars(
+        select(TripRequest).where(TripRequest.user_id == user_id).order_by(TripRequest.created_at.desc())
+    ))
+
+
+def claim_trips(session: Session, user_id: str, trips: list[tuple[str, str]]) -> list[str]:
+    """Save device trips to the account: only with their owner token, and only if no account has them."""
+    claimed = []
+    for trip_id, owner_token in trips:
+        trip = session.get(TripRequest, trip_id)
+        if trip is None or trip.owner_token_hash is None:
+            continue
+        if not secrets.compare_digest(token_digest(owner_token), trip.owner_token_hash):
+            continue
+        if trip.user_id in (None, user_id):
+            trip.user_id = user_id
+            claimed.append(trip_id)
+    session.commit()
+    return claimed
+
+
 def create_trip(
-    session: Session, constraints: TripConstraints, rain_probability: float | None = None
+    session: Session, constraints: TripConstraints, rain_probability: RainForecast = None,
+    user_id: str | None = None,
 ) -> TripResponse:
     places = PlaceRepository(session).list_active()
     plans = generate_options(
@@ -89,7 +114,7 @@ def create_trip(
     )
     owner_token = new_token()
     trip = TripRequest(
-        owner_token_hash=token_digest(owner_token),
+        owner_token_hash=token_digest(owner_token), user_id=user_id,
         language=constraints.language, start_date=constraints.start_date,
         days=constraints.days, traveler_count=constraints.traveler_count,
         budget_total=constraints.budget_total, start_location=constraints.start_location.name,

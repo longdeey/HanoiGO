@@ -1,15 +1,20 @@
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass, replace
 from datetime import date, time
 
 from app.domain.planner.budgeting import BudgetBreakdown, place_cost
 from app.domain.planner.config import (
+    DAY_EDGE_TOLERANCE_MINUTES,
     DINNER_START_MINUTE,
     EARLIEST_DINNER_MINUTE,
+    EVENING_LEG_MINUTES,
     IDLE_MINUTE_KM_EQUIVALENT,
+    LAST_DINNER_STRETCH_FACTOR,
+    LIGHT_FOOD_WORDS,
     LUNCH_END_MINUTE,
     LUNCH_MORNING_OVERRUN_MINUTES,
     LUNCH_START_MINUTE,
+    MAIN_DISH_SPACING_MINUTES,
     MAIN_MEAL_MINUTES,
     MAX_STAY_EXTENSION_SHARE,
     MAX_STAY_STRETCH_FACTOR,
@@ -17,11 +22,28 @@ from app.domain.planner.config import (
     RAIN_PROBABILITY_THRESHOLD,
     ROUTE_IMPROVEMENT_PASSES,
     ROUTE_MOVE_MAX_SEGMENT,
+    TREATS_PER_DAY,
 )
 from app.domain.planner.constraints import distance_km, is_available_on
 from app.domain.planner.ranking import ScoredCandidate
 from app.domain.planner.routing import route_order, travel_leg
 from app.domain.planner.types import PlaceCandidate, TripConstraints
+
+# One afternoon rain probability for the whole trip, or one per day (None: no forecast).
+RainForecast = float | None | Mapping[date, float | None]
+
+
+def rain_on(rain: RainForecast, day: date) -> float | None:
+    """The afternoon rain probability forecast for ``day``."""
+    return rain.get(day) if isinstance(rain, Mapping) else rain
+
+
+def trip_rain(rain: RainForecast) -> float | None:
+    """One figure for ranking places: the wettest forecast day (None if no day has one)."""
+    if not isinstance(rain, Mapping):
+        return rain
+    known = [value for value in rain.values() if value is not None]
+    return max(known) if known else None
 
 
 @dataclass(frozen=True)
@@ -53,6 +75,68 @@ def minute_of_day(value: time) -> int:
     return value.hour * 60 + value.minute
 
 
+def is_light_food(place: PlaceCandidate) -> bool:
+    """A dessert, snack or drink (chè, kem, coffee...) rather than a main dish."""
+    if place.category == "coffee" or "dessert" in place.tags:
+        return True
+    if place.category != "food":
+        return False
+    name = f" {place.name.lower()} "
+    return any(f" {word} " in name or (len(word) > 4 and word in name) for word in LIGHT_FOOD_WORDS)
+
+
+def is_main_dish(place: PlaceCandidate) -> bool:
+    """Phở, bún chả, a restaurant meal: anything to eat that is not light food."""
+    return place.category == "food" and not is_light_food(place)
+
+
+def is_diverse_trip(constraints: TripConstraints) -> bool:
+    """Several interests beyond eating and drinking (food with coffee is one taste)."""
+    interests = set(constraints.interests)
+    return len(interests) >= 2 and not interests <= {"food", "coffee"}
+
+
+def meal_rhythm_issues(day: "PlannedDay", constraints: TripConstraints) -> int:
+    """How often a day eats a main dish too soon after another.
+
+    Every main dish starts at least MAIN_DISH_SPACING_MINUTES after the previous
+    one. On a trip with several interests a main dish is never followed directly
+    by another, nor a dessert or coffee by another light stop; a food-only or
+    single-interest trip may serve two main dishes in a row, never three.
+    """
+    diverse = is_diverse_trip(constraints)
+    spacing = MAIN_DISH_SPACING_MINUTES["diverse" if diverse else "single"]
+    issues = run = 0
+    previous_main: int | None = None
+    for index, item in enumerate(day.items):
+        if not is_main_dish(item.place):
+            run = 0
+            if diverse and index and is_light_food(item.place) and is_light_food(day.items[index - 1].place):
+                issues += 1
+            continue
+        run += 1
+        if previous_main is not None and item.start_minute - previous_main < spacing:
+            issues += 1
+        if run >= (2 if diverse else 3):
+            issues += 1
+        previous_main = item.start_minute
+    return issues
+
+
+def edge_minutes(day: "PlannedDay", constraints: TripConstraints) -> int:
+    """How far the day starts late or ends early, beyond DAY_EDGE_TOLERANCE_MINUTES.
+
+    The day starts when the traveler leaves for the first stop and ends when
+    the last stop does; both stay within half an hour of the times they entered.
+    """
+    if not day.items:
+        return 0
+    first, last = day.items[0], day.items[-1]
+    late = first.start_minute - first.travel_minutes - minute_of_day(constraints.daily_start_time)
+    early = minute_of_day(constraints.daily_end_time) - last.end_minute
+    return max(0, late - DAY_EDGE_TOLERANCE_MINUTES) + max(0, early - DAY_EDGE_TOLERANCE_MINUTES)
+
+
 def is_main_meal(place: PlaceCandidate) -> bool:
     return place.category == "food" and place.average_visit_minutes >= MAIN_MEAL_MINUTES
 
@@ -69,14 +153,101 @@ def gap_minutes(day: PlannedDay) -> int:
     )
 
 
-def _opening_close(place: PlaceCandidate, day: date, start: int, end: int) -> int | None:
-    """Closing minute of the opening interval that contains [start, end]."""
+def _opening_interval(place: PlaceCandidate, day: date, start: int, end: int) -> tuple[int, int] | None:
+    """The opening interval (opening, closing minute) that contains [start, end]."""
     for opening, closing in place.opening_hours.get(str(day.weekday()), []):
         opened = minute_of_day(time.fromisoformat(opening))
         closed = minute_of_day(time.fromisoformat(closing))
         if opened <= start and end <= closed:
-            return closed
+            return opened, closed
     return None
+
+
+def _opening_close(place: PlaceCandidate, day: date, start: int, end: int) -> int | None:
+    """Closing minute of the opening interval that contains [start, end]."""
+    interval = _opening_interval(place, day, start, end)
+    return None if interval is None else interval[1]
+
+
+def fit_day_edges(
+    items: list[ScheduledItem], day: date, constraints: TripConstraints,
+    lunch: PlaceCandidate | None, dinner: PlaceCandidate | None,
+) -> list[ScheduledItem]:
+    """Start the day near the traveler's start time and end it near their end time.
+
+    Absorbing waits pushes stops later, so a day can begin an hour after the
+    traveler is ready; the first stop then starts earlier and lasts longer.
+    Likewise the last stop stays longer when the day would end early. Both stay
+    within opening hours, meal slots and the stretch limits of close_gaps; what
+    remains is left to the planner, which adds stops.
+    """
+    if not items:
+        return items
+    items = list(items)
+    tolerance = DAY_EDGE_TOLERANCE_MINUTES
+    first = items[0]
+    late = first.start_minute - first.travel_minutes - minute_of_day(constraints.daily_start_time) - tolerance
+    interval = _opening_interval(first.place, day, first.start_minute, first.end_minute)
+    if late > 0 and interval is not None:
+        earlier = min(
+            late, max(0, _stretch_limit(first.place) - first.visit_minutes),
+            first.start_minute - max(interval[0], _earliest_start(first, dinner)),
+        )
+        if earlier > 0:
+            items[0] = first = replace(first, start_minute=first.start_minute - earlier,
+                                       visit_minutes=first.visit_minutes + earlier)
+    last = items[-1]
+    early = minute_of_day(constraints.daily_end_time) - tolerance - last.end_minute
+    limit = _latest_end(last, day, constraints, lunch)
+    last_stretch = (last.place.average_visit_minutes * LAST_DINNER_STRETCH_FACTOR
+                    if dinner is not None and last.place.id == dinner.id else _stretch_limit(last.place))
+    if early > 0 and limit is not None:
+        longer = min(early, max(0, last_stretch - last.visit_minutes),
+                     max(0, limit - last.end_minute))
+        if longer > 0:
+            items[-1] = last = replace(last, end_minute=last.end_minute + longer,
+                                       visit_minutes=last.visit_minutes + longer)
+        # Still early (typically dinner, where little else is open at night):
+        # the last stop starts later and the stop before it stays longer, so
+        # the evening is not cut short and no wait appears in between.
+        early = minute_of_day(constraints.daily_end_time) - tolerance - last.end_minute
+        if early > 0 and len(items) > 1:
+            previous = items[-2]
+            previous_limit = _latest_end(previous, day, constraints, lunch)
+            if previous_limit is not None:
+                push = min(early, max(0, limit - last.end_minute),
+                           max(0, _stretch_limit(previous.place) - previous.visit_minutes),
+                           max(0, previous_limit - previous.end_minute))
+                if push > 0:
+                    items[-2] = replace(previous, end_minute=previous.end_minute + push,
+                                        visit_minutes=previous.visit_minutes + push)
+                    items[-1] = replace(last, start_minute=last.start_minute + push,
+                                        end_minute=last.end_minute + push)
+    # Still early: the whole tail of the day moves later, an earlier stop that
+    # is still open staying longer to make room (a long day, a quiet evening).
+    target = minute_of_day(constraints.daily_end_time) - tolerance
+    for index in range(len(items) - 3, -1, -1):
+        early = target - items[-1].end_minute
+        if early <= 0:
+            break
+        anchor = items[index]
+        anchor_limit = _latest_end(anchor, day, constraints, lunch)
+        if anchor_limit is None:
+            continue
+        push = min(early, max(0, _stretch_limit(anchor.place) - anchor.visit_minutes),
+                   max(0, anchor_limit - anchor.end_minute))
+        for later in items[index + 1:]:
+            later_limit = _latest_end(later, day, constraints, lunch)
+            push = min(push, 0 if later_limit is None else max(0, later_limit - later.end_minute))
+        if push <= 0:
+            continue
+        items[index] = replace(anchor, end_minute=anchor.end_minute + push,
+                               visit_minutes=anchor.visit_minutes + push)
+        for position in range(index + 1, len(items)):
+            later = items[position]
+            items[position] = replace(later, start_minute=later.start_minute + push,
+                                      end_minute=later.end_minute + push)
+    return items
 
 
 def close_gaps(
@@ -192,11 +363,13 @@ def opening_start(
 
 def build_day(
     day_number: int, day: date, candidates: list[ScoredCandidate],
-    constraints: TripConstraints, rain_probability: float | None = None,
-    allow_premium_food: bool = False, optimize_route: bool = True,
+    constraints: TripConstraints, rain_probability: RainForecast = None,
+    allow_premium_food: bool = False, optimize_route: bool = True, max_cost: int | None = None,
 ) -> PlannedDay:
     """Schedule one day. Meal slots and opening hours shape the order first;
-    ``optimize_route`` then shortens the route without changing the stops."""
+    ``optimize_route`` then shortens the route without changing the stops,
+    keeping the day's cost (rides included) within ``max_cost`` when given."""
+    rain_probability = rain_on(rain_probability, day)
     by_id = {candidate.place.id: candidate for candidate in candidates}
     earliest = minute_of_day(constraints.daily_start_time)
     latest = minute_of_day(constraints.daily_end_time)
@@ -240,8 +413,18 @@ def build_day(
     # On a food-and-coffee trip every selected meal is a stop; a free stroll
     # added between meals does not change that.
     food_only_day = bool(candidates) and set(constraints.interests) <= {"food", "coffee"}
+    # A dessert (or, on a coffee trip, a café) right after lunch and dinner:
+    # light food never takes a meal slot's place nor waits elsewhere in the day.
+    treats: list[PlaceCandidate] = []
+    if not food_only_day:
+        treats = [candidate.place for candidate in candidates
+                  # A café counts too: coffee after a meal is how Hanoi spends its evenings.
+                  if candidate.place.id not in meal_ids and is_light_food(candidate.place)
+                  and candidate.place not in premium_food and candidate.place.id != bridge_id
+                  ][:TREATS_PER_DAY]
+    treat_ids = {place.id for place in treats}
     other_places = [candidate.place for candidate in candidates
-                    if candidate.place.id not in meal_ids
+                    if candidate.place.id not in meal_ids | treat_ids
                     and (
                         food_only_day
                         or not is_food_or_coffee(candidate.place)
@@ -250,6 +433,39 @@ def build_day(
                     )]
     daytime = [place for place in other_places
                if (opening_start(place, day, earliest, latest) or latest) < DINNER_START_MINUTE]
+    evening_short = False
+    if dinner is not None:
+        # The evening is filled up to the traveler's end time: a lake, a walking
+        # street or a market open after dinner moves there from the day,
+        # outdoor and nightlife stops first, until the evening's stops can
+        # cover it (each may stay longer, see close_gaps), and beyond that only
+        # what no longer fits before dinner.
+        after_dinner = EARLIEST_DINNER_MINUTE + dinner.average_visit_minutes
+        evening_span = (latest - DAY_EDGE_TOLERANCE_MINUTES - after_dinner
+                        - (treats[1].average_visit_minutes if len(treats) > 1 else 0))
+        evening_only = [place for place in other_places if place not in daytime]
+        evening_load = sum(place.average_visit_minutes + EVENING_LEG_MINUTES for place in evening_only)
+        evening_reach = sum(_stretch_limit(place) + EVENING_LEG_MINUTES for place in evening_only)
+        daytime_left = DINNER_START_MINUTE - earliest - sum(
+            place.average_visit_minutes + EVENING_LEG_MINUTES
+            for place in (breakfast, lunch, afternoon_bridge, *treats[:1]) if place is not None
+        )
+        daytime_load = sum(place.average_visit_minutes + EVENING_LEG_MINUTES for place in daytime)
+        for place in sorted(
+            (place for place in daytime if not is_food_or_coffee(place) and place.id != bridge_id
+             and opening_start(place, day, after_dinner, latest) is not None),
+            key=lambda place: ("nightlife" not in place.tags, place.indoor),
+        ):
+            cost = place.average_visit_minutes + EVENING_LEG_MINUTES
+            if evening_load + place.average_visit_minutes > evening_span or (
+                evening_reach >= evening_span and daytime_load <= daytime_left
+            ):
+                continue
+            daytime.remove(place)
+            daytime_load -= cost
+            evening_load += cost
+            evening_reach += _stretch_limit(place) + EVENING_LEG_MINUTES
+        evening_short = evening_reach < evening_span
     evening = [place for place in other_places if place not in daytime]
     ordered_daytime = route_order(
         daytime, constraints.start_location.latitude, constraints.start_location.longitude,
@@ -278,14 +494,21 @@ def build_day(
         ordered_daytime.sort(key=lambda place: place.indoor)
         ordered_evening.sort(key=lambda place: place.indoor)
     ordered = ordered_daytime + ([dinner] if dinner is not None else []) + ordered_evening
+    treated_meals = [meal for meal in (lunch, dinner) if meal is not None]
+    if len(treats) == 1 and evening_short:
+        # A single dessert or café goes after dinner when the evening would
+        # otherwise end well before the traveler's end time.
+        treated_meals = [dinner]
+    for meal, treat in zip(treated_meals, treats):
+        ordered.insert(ordered.index(meal) + 1, treat)
     rainy = rain_probability is not None and rain_probability >= RAIN_PROBABILITY_THRESHOLD
 
     def schedule(order: list[PlaceCandidate]) -> PlannedDay:
-        return _schedule(day_number, day, order, by_id, constraints, lunch, dinner)
+        return _schedule(day_number, day, order, by_id, constraints, lunch, dinner, breakfast)
 
     planned = schedule(ordered)
     if optimize_route and len(ordered) >= 3:
-        planned = improve_route(ordered, schedule, constraints, rainy)
+        planned = improve_route(ordered, schedule, constraints, rainy, max_cost)
     return planned
 
 
@@ -314,6 +537,7 @@ def _schedule(
     day_number: int, day: date, ordered: list[PlaceCandidate],
     by_id: dict[str, ScoredCandidate], constraints: TripConstraints,
     lunch: PlaceCandidate | None, dinner: PlaceCandidate | None,
+    breakfast: PlaceCandidate | None = None,
 ) -> PlannedDay:
     latest = minute_of_day(constraints.daily_end_time)
     current_minute = minute_of_day(constraints.daily_start_time)
@@ -335,6 +559,9 @@ def _schedule(
             visit_latest = min(visit_latest, LUNCH_END_MINUTE)
         elif dinner is not None and place.id == dinner.id:
             visit_earliest = max(visit_earliest, EARLIEST_DINNER_MINUTE)
+        elif breakfast is not None and place.id == breakfast.id:
+            # Breakfast stays a morning meal wherever the route puts it.
+            visit_latest = min(visit_latest, LUNCH_START_MINUTE)
         start = opening_start(place, day, visit_earliest, visit_latest)
         if start is None:
             continue
@@ -352,7 +579,7 @@ def _schedule(
         travel_minutes += leg_minutes
         current_minute = item.end_minute
         lat, lon = place.latitude, place.longitude
-    items = close_gaps(items, day, constraints, lunch, dinner)
+    items = fit_day_edges(close_gaps(items, day, constraints, lunch, dinner), day, constraints, lunch, dinner)
     return PlannedDay(day_number, day, tuple(items), total_cost, round(total_km, 3), travel_minutes)
 
 
@@ -367,16 +594,15 @@ def idle_minutes(day: PlannedDay, constraints: TripConstraints) -> int:
 
 
 def unfilled_minutes(day: PlannedDay, constraints: TripConstraints) -> int:
-    """Idle time plus the part of the day left empty before dinnertime ends.
+    """Idle time plus the part of the day left empty at its end.
 
     A day that finishes at 9:00 has no wait between stops but is mostly empty;
-    the planner adds stops until the day reaches the end of the dinner slot
-    (or the traveler's end time, if earlier).
+    the planner adds stops until the day reaches the traveler's end time, less
+    DAY_EDGE_TOLERANCE_MINUTES.
     """
     if not day.items:
         return 0
-    covered_until = min(minute_of_day(constraints.daily_end_time),
-                        EARLIEST_DINNER_MINUTE + MAIN_MEAL_MINUTES)
+    covered_until = minute_of_day(constraints.daily_end_time) - DAY_EDGE_TOLERANCE_MINUTES
     return idle_minutes(day, constraints) + max(0, covered_until - day.items[-1].end_minute)
 
 
@@ -449,14 +675,17 @@ def _route_length(
 
 def improve_route(
     order: list[PlaceCandidate], schedule: Callable[[list[PlaceCandidate]], PlannedDay],
-    constraints: TripConstraints, rainy: bool = False,
+    constraints: TripConstraints, rainy: bool = False, max_cost: int | None = None,
 ) -> PlannedDay:
     """Deterministic first-improvement local search over the visiting order.
 
     Only orders that are geometrically shorter are scheduled, which keeps the
     search cheap enough to run until no move helps. A move is accepted only when
     the same stops remain scheduled (opening hours and meal slots still hold),
-    no new wait appears between stops, meals stay separated by other activities,
+    no new wait appears between stops, meals stay separated by other activities
+    and main dishes no closer together (meal_rhythm_issues), a day within the
+    traveler's hours stays within them, the cost stays within ``max_cost`` (a
+    shorter route can need a paid ride),
     rainy-day outdoor-first ordering is not weakened, and the distance-plus-idle
     objective strictly improves.
     """
@@ -464,6 +693,9 @@ def improve_route(
     scheduled_ids = frozenset(item.place.id for item in best.items)
     best_objective = route_objective(best, constraints)
     meal_limit = _adjacent_meal_pairs(best)
+    rhythm_limit = meal_rhythm_issues(best, constraints)
+    within_hours = edge_minutes(best, constraints) == 0
+    cost_limit = None if max_cost is None else max(max_cost, best.cost.total)
     gap_limit = gap_minutes(best)
     inversion_limit = _rain_inversions(best)
     afternoon_limit = _outdoor_afternoon_stops(best)
@@ -480,7 +712,10 @@ def improve_route(
                 item.place.id for item in trial.items
             ) != scheduled_ids:
                 continue
-            if _adjacent_meal_pairs(trial) > meal_limit or gap_minutes(trial) > gap_limit:
+            if (_adjacent_meal_pairs(trial) > meal_limit or gap_minutes(trial) > gap_limit
+                    or meal_rhythm_issues(trial, constraints) > rhythm_limit
+                    or (within_hours and edge_minutes(trial, constraints) > 0)
+                    or (cost_limit is not None and trial.cost.total > cost_limit)):
                 continue
             if rainy and (
                 _rain_inversions(trial) > inversion_limit

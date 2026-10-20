@@ -76,6 +76,47 @@ LUNCH_MORNING_OVERRUN_MINUTES = 30
 DINNER_START_MINUTE = 17 * 60
 EARLIEST_DINNER_MINUTE = 17 * 60
 STAY_NEARBY_RADIUS_KM = 5.0
+# Light food: a dessert, a snack or a drink that fits right after a meal. Coffee
+# is always light; a food place is light when tagged "dessert" or named so.
+LIGHT_FOOD_WORDS = (
+    "chè", "kem", "sữa chua", "tào phớ", "caramen", "bánh flan", "bánh ngọt", "trà sữa", "nước mía",
+    "hoa quả", "dessert", "gelato", "ice cream", "bingsu", "yogurt", "bakery", "sweet",
+)
+# Time between the starts of two main dishes. On a trip with several interests
+# a main dish is also never followed directly by another (a dessert, a coffee or
+# a sight comes between); on a food-only or single-interest trip two may follow
+# each other, never three.
+MAIN_DISH_SPACING_MINUTES = {"diverse": 120, "single": 90}
+# Light food (a dessert or, on coffee trips, a café) taken right after lunch
+# and after dinner; at most one per meal.
+TREATS_PER_DAY = 2
+# A day starts at most this long after the traveler's start time and ends at
+# most this long before their end time.
+DAY_EDGE_TOLERANCE_MINUTES = 30
+# Rough ride between two evening stops when planning how many fit after dinner.
+EVENING_LEG_MINUTES = 10
+# Hanoi's must-see places a day aims for (at least one, two on fuller days).
+MUST_SEE_PER_DAY = 2
+# Famous (must-see or notable) stops chosen up front for one day: the must-see
+# quota plus one per interest the traveler picked that those do not cover.
+MAX_FAMOUS_PER_DAY = 4
+# How much closer a famous place counts as when ordering a day's candidates
+# (per tier: notable 1, must-see 2), so a famous place beats an ordinary one nearby.
+FAMOUS_DISTANCE_BONUS_KM = 1.5
+# A famous eatery counts this many FinalScore points more when choosing a meal.
+FAMOUS_MEAL_BONUS = 10
+# A trip starting this far from Hoàn Kiếm Lake visits, every day, a famous place
+# within LOCAL_STOP_RADIUS_KM of where the traveler stays, not only the centre.
+HANOI_CENTRE = (21.0287, 105.8522)
+OUTER_START_KM = 8.0
+LOCAL_STOP_RADIUS_KM = 10.0
+# From such a base, sights further than this are a separate outing: odd days stay
+# around the base (its famous places, nearby meals), even days go to them, so no
+# day rides downtown for breakfast and back.
+FAR_FROM_BASE_KM = 15.0
+# Stops added to fill a gap come from near the day's route first, so an
+# evening is not spent riding across town to a park.
+GAP_FILL_NEARBY_KM = {"walking": 2.0, "walking_grab": 4.0, "grab": 6.0, "motorbike": 6.0, "car": 8.0}
 # A stop starts as soon as the traveler arrives from the previous one. Waiting
 # for opening hours or a meal slot is absorbed by staying longer at the earlier
 # stop (up to this share of its visit) or by starting it later; gaps too long
@@ -85,12 +126,33 @@ MAX_STAY_EXTENSION_SHARE = 0.5
 # times its usual visit to avoid a wait: a park, village or museum suits a long
 # visit better than a meal or a coffee.
 MAX_STAY_STRETCH_FACTOR = {"sight": 3, "food": 2}
-GAP_FILL_MAX_STEPS = 6
+# The day's last stop, when it is dinner, may run up to this many times its
+# usual length: an unhurried dinner fills a quiet evening up to the
+# traveler's end time when nothing else nearby is open that late.
+LAST_DINNER_STRETCH_FACTOR = 3
+GAP_FILL_MAX_STEPS = 10
+# Desserts and cafés considered when filling a gap or separating two main dishes.
+LIGHT_FOOD_POOL_SIZE = 8
+# Seated meals offered to the gap filler when a day has lost its lunch or dinner.
+MISSING_MEAL_POOL_SIZE = 8
+# Moves tried per day to separate main dishes that come too close together.
+REPAIR_MAX_STEPS = 4
+REPAIR_POOL_SIZE = 25
+# Sights tried in place of a main dish on a day with more than two of them.
+REPAIR_SWAP_SIGHTS = 10
+# Other meals kept in reserve for each meal slot, tried in turn when the first
+# choice does not fit the day (too costly for the money left, closed by then).
+MEAL_ALTERNATES = 4
+# A meal chosen for a slot costs at most this share of the money left for the day.
+MAX_MEAL_DAY_BUDGET_SHARE = 0.5
 # Free parks and lakes considered when no stop matching the interests fits a gap.
 GAP_FILL_FILLER_POOL_SIZE = 20
 # A day may leave this much time empty (late start, early finish) before the
 # planner adds a stop.
 GAP_FILL_START_TOLERANCE_MINUTES = 60
+# Candidates tried in place of an extra stop when a full day still starts late
+# or ends early.
+GAP_FILL_SWAP_POOL = 10
 
 # Route improvement. After the meal slots and opening hours fix the rough
 # shape of a day, a local search (segment reversal, swapping two stops, moving
@@ -113,6 +175,12 @@ RAIN_AFTERNOON_START_MINUTE = 14 * 60
 # Meals are chosen near the day's main attraction so lunch does not pull the
 # route across the city and back.
 MEAL_DISTANCE_PENALTY_PER_KM = 4.0
+# Budget meals: VND a point of FinalScore is worth when choosing between cheap
+# eateries, so a well-known one beats an anonymous one costing a little less.
+BUDGET_MEAL_QUALITY_VND = 1_000
+# FinalScore points held against a meal serving the same dish as one already
+# chosen that day (chả cá for lunch, then chả cá again for dinner).
+SAME_DISH_PENALTY = 30
 
 # Tags that describe bookkeeping rather than a theme. They never count
 # toward the variety an Explore More route is looking for.

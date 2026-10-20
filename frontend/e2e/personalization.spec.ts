@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { signIn } from "./auth";
+
 /** Go to the next form step and wait until it is shown. */
 async function nextStep(page: Page, to: number) {
   await page.getByRole("button", { name: "Tiếp tục" }).click();
@@ -18,7 +20,8 @@ type ApiTrip = {
 
 const signature = (trip: ApiTrip) => trip.options[0].days.flatMap((day) => day.items.map((item) => item.place.slug)).join(";");
 
-test("free Hanoi address, higher budget, motorbike, and rebuilding after editing the request", async ({ page }) => {
+test("free Hanoi address, higher budget, motorbike, and rebuilding after editing the request", async ({ page, request }) => {
+  await signIn(page, request);
   await page.route("**/api/v1/locations/resolve?**", async (route) => {
     expect(new URL(route.request().url()).searchParams.get("query")).toBe("123 Nguyễn Trãi, Hà Nội");
     await route.fulfill({ json: { name: "Nguyễn Trãi, Thanh Xuân, Hà Nội", latitude: 21.001, longitude: 105.817 } });

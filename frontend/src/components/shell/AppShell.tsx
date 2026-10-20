@@ -9,7 +9,8 @@ import { BookOpenText, CalendarDots, CaretLeft, House, MapTrifold, Path, UserCir
 
 import { usePrefs } from "@/lib/prefs";
 import { nameLang } from "@/lib/lang";
-import { savedTripIds, tripIsToday, tripSummary } from "@/lib/storage";
+import { tripIsToday } from "@/lib/storage";
+import { useMyTrips } from "@/lib/useMyTrips";
 import { todayInHanoi } from "@/lib/format";
 import { spring } from "@/lib/motion";
 import { ChromeProvider, useChromeState } from "./chrome";
@@ -155,14 +156,8 @@ function DesktopNav({ active }: { active: Destination | null }) {
 function BottomNav({ active }: { active: Destination | null }) {
   const { tr } = usePrefs();
   const { chrome } = useChromeState();
-  const [tripToday, setTripToday] = useState(false);
-  useEffect(() => {
-    const today = todayInHanoi();
-    setTripToday(savedTripIds().some((id) => {
-      const summary = tripSummary(id);
-      return summary ? tripIsToday(summary, today) : false;
-    }));
-  }, [active]);
+  const mine = useMyTrips();
+  const tripToday = mine.trips.some((summary) => tripIsToday(summary, todayInHanoi()));
   const hidden = Boolean(chrome.hideBottomNav);
   return <nav aria-label={tr("Main navigation")}
     className={`fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper pb-[env(safe-area-inset-bottom)] shadow-float transition-transform duration-300 lg:hidden ${hidden ? "translate-y-full" : "translate-y-0"}`}

@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { createAccount, signInPage } from "./auth";
+
 // Spec §14: screenshot comparison of the 8 main screens at 390 px and 1280 px,
 // light and dark. Baselines depend on the OS, browser and fonts, so this suite
 // is opt-in: HANOIGO_VISUAL=1 npx playwright test visual.spec.ts
@@ -13,9 +15,11 @@ const START_DATE = "2026-11-20";
 
 type ApiTrip = { tripId: string; ownerToken: string; options: { id: string }[] };
 let trip: ApiTrip;
+let account: { token: string; user: unknown };
 
 test.beforeAll(async ({ request }) => {
-  const response = await request.post("http://localhost:8000/api/v1/trips/generate", { data: {
+  account = await createAccount(request);
+  const response = await request.post("http://localhost:8000/api/v1/trips/generate", { headers: { Authorization: `Bearer ${account.token}` }, data: {
     language: "vi", startDate: START_DATE, days: 2, travelerCount: 2, budgetTotal: 2_000_000,
     startLocation: { name: "Phố cổ", latitude: 21.034, longitude: 105.85 }, interests: ["history", "food"],
     travelMode: "walking", travelRadiusMode: "balanced", pace: "balanced", experiencePreferences: ["local"],
@@ -46,10 +50,20 @@ for (const theme of ["light", "dark"] as const) {
           await context.addCookies([{ name: "hanoigo-theme", value: theme, url: "http://localhost:3000" }]);
           // Weather is live data: show the "no forecast" state, which hides it.
           await page.route("**/api/v1/weather?**", (route) => route.fulfill({ json: { date: "2026-10-18", available: false, afternoonRainProbability: null, warning: null } }));
+          // Registered last, so it answers the per-day forecast (the glob above matches it too).
+          await page.route("**/api/v1/weather/days?**", (route) => {
+            const query = new URL(route.request().url()).searchParams;
+            const first = new Date(`${query.get("start")}T00:00:00Z`);
+            return route.fulfill({ json: Array.from({ length: Number(query.get("days")) }, (_, offset) => ({
+              date: new Date(first.getTime() + offset * 86_400_000).toISOString().slice(0, 10),
+              available: false, afternoonRainProbability: null, warning: "Forecast not available for this date",
+            })) });
+          });
           await page.route("**/api/v1/routes/geometry", async (route) => {
             const body = route.request().postDataJSON() as { points: { latitude: number; longitude: number }[] };
             await route.fulfill({ json: { coordinates: body.points, roadDistanceKm: 1.2, roadDurationMinutes: 7, source: "osrm", warning: null } });
           });
+          await signInPage(page, account);
           await page.goto("/");
           await page.evaluate(([id, token, startDate]) => {
             localStorage.setItem(`hanoigo-owner-${id}`, token);

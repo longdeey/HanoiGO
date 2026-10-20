@@ -4,7 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { renderApp } from "@/test/render";
+import { renderApp, signInForTest } from "@/test/render";
+import { fetchMyTrips } from "@/services/api";
 import { todayInHanoi } from "@/lib/format";
 import { AppShell } from "./AppShell";
 
@@ -13,6 +14,11 @@ vi.mock("next/navigation", () => ({
   usePathname: () => navigation.pathname,
   useRouter: () => ({ push: navigation.push, back: navigation.back, replace: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
+}));
+
+vi.mock("@/services/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/api")>()),
+  fetchMyTrips: vi.fn(),
 }));
 
 afterEach(() => { cleanup(); navigation.pathname = "/"; window.localStorage.clear(); document.cookie = "hanoigo-language=; max-age=0"; });
@@ -28,11 +34,11 @@ describe("app shell", () => {
     expect(screen.getByRole("link", { name: "Bỏ qua tới nội dung chính" }).getAttribute("href")).toBe("#main");
   });
 
-  it("shows a red dot on Trips when a saved trip covers today", () => {
-    window.localStorage.setItem("hanoigo-owner-t1", "token");
-    window.localStorage.setItem("hanoigo-trip-summary-t1", JSON.stringify({ tripId: "t1", startDate: todayInHanoi(), days: 2, travelerCount: 2, budgetTotal: 1, startName: null, createdAt: "" }));
+  it("shows a red dot on Trips when a trip in the account covers today", async () => {
+    signInForTest();
+    vi.mocked(fetchMyTrips).mockResolvedValue([{ tripId: "t1", startDate: todayInHanoi(), days: 2, travelerCount: 2, budgetTotal: 1, startName: "Phố cổ", createdAt: "" }]);
     renderApp(<AppShell><p>content</p></AppShell>);
-    expect(screen.getByText("Có chuyến hôm nay")).toBeTruthy();
+    expect(await screen.findByText("Có chuyến hôm nay")).toBeTruthy();
   });
 
   it("hides both bars while planning", () => {

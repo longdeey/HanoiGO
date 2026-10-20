@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { createShareToken, fetchTrip, fetchWeather, optimizeTrip, replacePlace } from "@/services/api";
+import { createShareToken, fetchTrip, fetchWeatherDays, optimizeTrip, replacePlace } from "@/services/api";
 import { option, place, renderApp, trip } from "@/test/render";
 import { TripCompare } from "./TripCompare";
 import { TripItinerary } from "./TripItinerary";
@@ -19,13 +19,13 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/components/map/RouteMap", () => ({ default: () => <div data-testid="route-map" /> }));
 vi.mock("@/services/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/services/api")>()),
-  fetchTrip: vi.fn(), replacePlace: vi.fn(), optimizeTrip: vi.fn(), createShareToken: vi.fn(), fetchWeather: vi.fn(),
+  fetchTrip: vi.fn(), replacePlace: vi.fn(), optimizeTrip: vi.fn(), createShareToken: vi.fn(), fetchWeatherDays: vi.fn(),
 }));
 
 beforeEach(() => {
   navigation.params = new URLSearchParams();
   window.localStorage.setItem("hanoigo-owner-trip-1", "owner-token");
-  vi.mocked(fetchWeather).mockResolvedValue({ date: "2026-10-18", available: false, afternoonRainProbability: null, warning: null });
+  vi.mocked(fetchWeatherDays).mockResolvedValue([{ date: "2026-10-18", available: false, afternoonRainProbability: null, warning: null }]);
 });
 afterEach(() => { cleanup(); vi.resetAllMocks(); window.localStorage.clear(); window.sessionStorage.clear(); });
 
@@ -223,12 +223,23 @@ describe("itinerary details", () => {
     expect(screen.getByRole("link", { name: "Nhà hát Lớn Hà Nội" }).getAttribute("href")).toBe("/stories/nha-hat-lon-ha-noi");
   });
 
-  it("shows the weather only on the day the API has a forecast for (F30)", async () => {
-    vi.mocked(fetchWeather).mockResolvedValue({ date: "2026-10-18", available: true, afternoonRainProbability: 0.7, warning: null });
+  it("shows each day's afternoon forecast on its tab and above its timeline (F30)", async () => {
+    vi.mocked(fetchWeatherDays).mockResolvedValue([{ date: "2026-10-18", available: true, afternoonRainProbability: 0.7, warning: null }]);
     vi.mocked(fetchTrip).mockResolvedValue(trip());
     renderApp(<TripItinerary tripId="trip-1" optionId="best" />);
     const day = await screen.findByRole("button", { name: /^Ngày 1/ });
     await waitFor(() => expect(within(day).getByText("Chiều nhiều khả năng mưa (70%)")).toBeTruthy());
+    expect(within(day).getByText("70%")).toBeTruthy();
+    expect(screen.getByText("Hôm nay các điểm ngoài trời được xếp trước.", { exact: false })).toBeTruthy();
+    expect(fetchWeatherDays).toHaveBeenCalledWith(expect.any(Number), expect.any(Number), "2026-10-18", 1);
+  });
+
+  it("says when a day is too far ahead to have a forecast yet", async () => {
+    vi.mocked(fetchTrip).mockResolvedValue(trip());
+    renderApp(<TripItinerary tripId="trip-1" optionId="best" />);
+    const day = await screen.findByRole("button", { name: /^Ngày 1/ });
+    await waitFor(() => expect(within(day).getByText("Chưa có dự báo cho ngày này")).toBeTruthy());
+    expect(screen.getByText(/Dự báo thời tiết có trước tối đa 16 ngày/)).toBeTruthy();
   });
 });
 

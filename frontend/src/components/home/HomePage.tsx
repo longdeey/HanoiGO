@@ -13,7 +13,8 @@ import { nameLang } from "@/lib/lang";
 import { hanoiImages, imagePlaces } from "@/data/hanoi-images";
 import { storyForImage } from "@/data/story-photos";
 import { formatDateRange, sentence, todayInHanoi } from "@/lib/format";
-import { ownerToken, savedTripIds, tripIsToday, tripSummary, type TripSummary } from "@/lib/storage";
+import { tripIsToday } from "@/lib/storage";
+import { useMyTrips } from "@/lib/useMyTrips";
 import { OPTION_LABELS, optionHref } from "@/lib/trip";
 import { Signboard, StreetPlate } from "@/components/ui/Signboard";
 import { Collage, type Canvas, type Clip } from "@/components/ui/Collage";
@@ -208,16 +209,12 @@ function PhotoStrip() {
   </section>;
 }
 
-/** Only when a trip saved on this device covers today (spec §8.2). */
+/** Only when a trip saved to the signed-in account covers today (spec §8.2). */
 function OngoingTrip() {
-  const { tr, language } = usePrefs();
-  const [summary, setSummary] = useState<TripSummary | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  useEffect(() => {
-    const today = todayInHanoi();
-    const found = savedTripIds().map((id) => tripSummary(id)).find((item): item is TripSummary => Boolean(item && tripIsToday(item, today)));
-    if (found) { setSummary(found); setToken(ownerToken(found.tripId)); }
-  }, []);
+  const { tr, language, auth } = usePrefs();
+  const mine = useMyTrips();
+  const summary = mine.trips.find((item) => tripIsToday(item, todayInHanoi())) ?? null;
+  const token = auth?.token ?? null;
   const trip = useQuery({
     queryKey: ["trip", summary?.tripId],
     queryFn: () => fetchTrip(summary!.tripId, token!),

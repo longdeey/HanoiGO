@@ -43,9 +43,19 @@ def authorize_trip(
     share_ok = not owner and trip.share_token_hash is not None and secrets.compare_digest(
         digest, trip.share_token_hash
     )
-    if not owner_ok and not share_ok:
+    if not owner_ok and not share_ok and not _account_owns(session, trip, authorization):
         raise TripAccessDenied("This token cannot access the trip")
     return trip
+
+
+def _account_owns(session: Session, trip: TripRequest, authorization: str | None) -> bool:
+    """A signed-in user's token opens the trips saved to their account, on any device."""
+    from app.application.auth import current_user
+
+    if trip.user_id is None:
+        return False
+    user = current_user(session, authorization)
+    return user is not None and user.id == trip.user_id
 
 
 def rotate_share_token(session: Session, trip: TripRequest) -> str:

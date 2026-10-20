@@ -32,6 +32,12 @@ if (typeof window !== "undefined") {
   }
 }
 
+/** A signed-in browser: the session the app reads from local storage. */
+export function signInForTest(token = "account-token") {
+  window.localStorage.setItem("hanoigo-auth-token", token);
+  window.localStorage.setItem("hanoigo-auth-user", JSON.stringify({ id: "user-1", displayName: "Lan", email: "lan@example.com", phone: null }));
+}
+
 /** Render with every app provider (kept on rerender); motion runs reduced in tests. */
 export function renderApp(ui: React.ReactElement, { language = "vi" as Language } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

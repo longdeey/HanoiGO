@@ -6,6 +6,30 @@ from app.domain.planner.config import TRAVEL_MODE_DISTANCE_CAP_KM, TRAVEL_RADIUS
 from app.domain.planner.types import PlaceCandidate, TripConstraints
 from app.domain.stories import duplicate_site_entries
 
+# The place categories and tags each traveler interest covers.
+INTEREST_ALIASES: dict[str, set[str]] = {
+    "museum": {"museum"},
+    "food": {"food", "coffee"},
+    "coffee": {"coffee", "food"},
+    "history": {"history", "museum"},
+    "park": {"park", "nature", "hiking"},
+    "nature": {"nature", "park", "hiking"},
+    "hiking": {"hiking", "nature", "park"},
+    "craft": {"craft", "local_experience"},
+    "festival": {"festival"},
+    "shopping": {"shopping"},
+    "art": {"art", "museum"},
+    "local_culture": {"local_culture", "local_experience"},
+}
+
+
+def serves_interest(place: PlaceCandidate, interest: str) -> bool:
+    """Whether a place is something a traveler with this interest came for."""
+    terms = INTEREST_ALIASES.get(interest, {interest})
+    if interest in {"food", "coffee"}:
+        return place.category in terms
+    return place.category in terms or bool(set(place.tags) & (terms - {"food", "coffee"}))
+
 
 def radius_for_constraints(constraints: TripConstraints) -> float:
     """Return a preset radius bounded by what the selected vehicle can cover."""
@@ -115,26 +139,14 @@ def filter_candidates(places: list[PlaceCandidate], constraints: TripConstraints
     # single interest with unrelated attractions.
     interests = set(constraints.interests)
     if interests:
-        aliases: dict[str, set[str]] = {
-            "museum": {"museum"},
-            "food": {"food", "coffee"},
-            "coffee": {"coffee", "food"},
-            "history": {"history", "museum"},
-            "park": {"park", "nature", "hiking"},
-            "nature": {"nature", "park", "hiking"},
-            "hiking": {"hiking", "nature", "park"},
-            "craft": {"craft", "local_experience"},
-            "festival": {"festival"},
-            "shopping": {"shopping"},
-            "art": {"art", "museum"},
-            "local_culture": {"local_culture", "local_experience"},
-        }
-        focused_terms = set().union(*(aliases.get(interest, {interest}) for interest in interests))
+        focused_terms = set().union(*(INTEREST_ALIASES.get(interest, {interest}) for interest in interests))
         focus_tags = focused_terms - {"food", "coffee"}
+        # Hanoi's must-see places stay whatever the interests: every day visits one.
         focused = [place for place in result if (
             place.category in focused_terms
             or bool(set(place.tags) & focus_tags)
             or place.category in {"food", "coffee"}
+            or place.highlight_level == "must_see"
         )]
         # A narrow interest can be infeasible at a particular start/radius.
         # Keep the already validated catalog only when strict filtering would

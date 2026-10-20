@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchTrip } from "@/services/api";
 import { ownerToken } from "@/lib/storage";
+import { usePrefs } from "@/lib/prefs";
 import type { TripResponse } from "@/types/trip";
 
 export const tripQueryKey = (tripId: string) => ["trip", tripId] as const;
@@ -16,15 +17,18 @@ function subscribeStorage(onChange: () => void) {
 }
 
 /**
- * Loads a trip with the share token from the URL (read-only) or the owner
- * token saved on this device. A trip just created is already in the cache.
+ * Loads a trip with the share token from the URL (read-only), the owner
+ * token saved on this device or the signed-in account's token. A trip just created is already in the cache.
  */
 export function useTrip(tripId: string) {
   const params = useSearchParams();
   const share = params.get("share");
   // undefined while hydrating (the server cannot see this device's token),
   // then the token itself; in-app navigation reads it on the first render.
-  const owner = useSyncExternalStore<string | null | undefined>(subscribeStorage, () => ownerToken(tripId), () => undefined);
+  const device = useSyncExternalStore<string | null | undefined>(subscribeStorage, () => ownerToken(tripId), () => undefined);
+  const { auth, authReady } = usePrefs();
+  // A trip saved to the account opens with the account token on any device.
+  const owner = device === undefined || !authReady ? undefined : device ?? auth?.token ?? null;
   const token = share ?? owner ?? null;
   const query = useQuery({
     queryKey: tripQueryKey(tripId),

@@ -9,7 +9,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.application.access import token_digest
-from app.infrastructure.db.models import User, new_id
+from app.infrastructure.db.models import User, UserSession, new_id
 
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 PHONE_PATTERN = re.compile(r"^\+?[0-9][0-9\s().-]{7,19}$")
@@ -62,9 +62,8 @@ def register(session: Session, display_name: str, identifier: str, password: str
         id=new_id(), display_name=display_name.strip(), email=email, phone=phone,
         password_hash=_password_hash(password),
     )
-    token = secrets.token_urlsafe(32)
-    user.auth_token_hash = token_digest(token)
     session.add(user)
+    token = _new_session(session, user)
     session.commit()
     return token, user
 
@@ -75,16 +74,36 @@ def login(session: Session, identifier: str, password: str) -> tuple[str, User]:
     user = session.scalar(select(User).where(or_(*identifiers)))
     if user is None or not _password_matches(password, user.password_hash):
         raise AuthError("Invalid email/phone or password")
-    token = secrets.token_urlsafe(32)
-    user.auth_token_hash = token_digest(token)
+    token = _new_session(session, user)
     session.commit()
     return token, user
+
+
+def _new_session(session: Session, user: User) -> str:
+    """A new token for this device; other devices stay signed in."""
+    token = secrets.token_urlsafe(32)
+    session.add(UserSession(token_hash=token_digest(token), user_id=user.id))
+    return token
+
+
+def logout(session: Session, authorization: str | None) -> None:
+    if authorization is None or not authorization.startswith("Bearer "):
+        return
+    digest = token_digest(authorization[7:])
+    if (signed_in := session.get(UserSession, digest)) is not None:
+        session.delete(signed_in)
+    for user in session.scalars(select(User).where(User.auth_token_hash == digest)):
+        user.auth_token_hash = None
+    session.commit()
 
 
 def current_user(session: Session, authorization: str | None) -> User | None:
     if authorization is None or not authorization.startswith("Bearer "):
         return None
     digest = token_digest(authorization[7:])
+    if (signed_in := session.get(UserSession, digest)) is not None:
+        return session.get(User, signed_in.user_id)
+    # Tokens issued before sessions existed.
     return session.scalar(select(User).where(User.auth_token_hash == digest))
 
 

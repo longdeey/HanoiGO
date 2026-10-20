@@ -97,12 +97,26 @@ class User(Base):
     reviews: Mapped[list[PlaceReview]] = relationship(back_populates="user")
 
 
+class UserSession(Base):
+    """One signed-in device: signing in elsewhere adds a session instead of ending this one."""
+
+    __tablename__ = "user_sessions"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+
 class TripRequest(Base):
     __tablename__ = "trip_requests"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     owner_token_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     share_token_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # The account the trip is saved to; trips made before accounts have none.
+    user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
     language: Mapped[str] = mapped_column(String(2), default="en")
     start_date: Mapped[date | None] = mapped_column(Date)
     days: Mapped[int] = mapped_column(Integer)

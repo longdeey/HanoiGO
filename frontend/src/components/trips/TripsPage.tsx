@@ -1,20 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { CaretRight, Info, Path, Trash } from "@phosphor-icons/react";
 
 import type { TripResponse } from "@/types/trip";
-import { ApiRequestError, fetchTrip } from "@/services/api";
+import { ApiRequestError, deleteMyTrip, fetchTrip } from "@/services/api";
 import { usePrefs } from "@/lib/prefs";
 import { addDays, formatDateRange, sentence, todayInHanoi } from "@/lib/format";
-import { forgetTrip, ownerToken, saveTripSummary, savedTripIds, tripIsToday, tripSummary, type TripSummary } from "@/lib/storage";
-import { OPTION_LABELS, budgetTotal, dayColor, optionHref } from "@/lib/trip";
+import { forgetTrip, tripIsToday, type TripSummary } from "@/lib/storage";
+import { useMyTrips } from "@/lib/useMyTrips";
+import { OPTION_LABELS, dayColor, optionHref } from "@/lib/trip";
 import { nameLang } from "@/lib/lang";
 import { usePageChrome } from "@/components/shell/chrome";
 import { Button, ButtonLink } from "@/components/ui/Button";
-import { EmptyState, Skeleton, TripListSkeleton } from "@/components/ui/States";
+import { EmptyState, ErrorState, Skeleton, TripListSkeleton, apiErrorMessage } from "@/components/ui/States";
+import { SignInGate } from "@/components/account/SignInGate";
 import { Menu } from "@/components/ui/Menu";
 import { StreetPlate } from "@/components/ui/Signboard";
 import { useToast } from "@/components/ui/Toast";
@@ -31,25 +33,23 @@ const GROUP_STYLES: Record<GroupKey, { plate: string; day: string }> = {
   undated: { plate: "bg-wall-yellow text-plate-ink", day: "!text-warn-ink" },
 };
 
-function summaryFromTrip(trip: TripResponse): TripSummary {
-  const option = trip.options[0];
-  return {
-    tripId: trip.tripId, startDate: option?.days[0]?.date ?? null, days: option?.days.length ?? 0,
-    travelerCount: null, budgetTotal: option ? budgetTotal(option) : null, startName: null, createdAt: "",
-  };
+/** Trips belong to an account: signed out, this sends you to sign in. */
+export function TripsPage() {
+  usePageChrome({});
+  return <SignInGate><AccountTrips /></SignInGate>;
 }
 
-export function TripsPage() {
-  const { tr } = usePrefs();
-  usePageChrome({});
+/** The signed-in account's trips, grouped by date. */
+function AccountTrips() {
+  const { tr, auth } = usePrefs();
   const toast = useToast();
-  const [rows, setRows] = useState<Row[] | null>(null);
-  useEffect(() => {
-    setRows(savedTripIds().map((id) => ({ id, token: ownerToken(id), summary: tripSummary(id) })));
-  }, []);
+  const client = useQueryClient();
+  const mine = useMyTrips();
+  const token = auth?.token ?? null;
+  const rows: Row[] | null = mine.isPending ? null : mine.trips.map((summary) => ({ id: summary.tripId, token, summary }));
   const today = todayInHanoi();
-  // Trips created before summaries existed, and today's trip (for its next stop), are loaded once.
-  const toLoad = (rows ?? []).filter((row) => row.token && (!row.summary || tripIsToday(row.summary, today)));
+  // Today's trip is loaded for its next stop.
+  const toLoad = (rows ?? []).filter((row) => row.token && row.summary && tripIsToday(row.summary, today));
   const loaded = useQueries({
     queries: toLoad.map((row) => ({
       queryKey: ["trip", row.id],
@@ -58,23 +58,21 @@ export function TripsPage() {
     })),
   });
   const results = useMemo(() => new Map(toLoad.map((row, index) => [row.id, loaded[index]])), [toLoad, loaded]);
-  useEffect(() => {
-    results.forEach((result, id) => {
-      const row = rows?.find((item) => item.id === id);
-      if (result?.data && row && !row.summary) {
-        const summary = summaryFromTrip(result.data);
-        saveTripSummary(summary);
-        setRows((current) => current?.map((item) => item.id === id ? { ...item, summary } : item) ?? null);
-      }
-    });
-  }, [results, rows]);
 
-  function remove(id: string) {
+  async function remove(id: string) {
+    if (!token) return;
+    try {
+      await deleteMyTrip(token, id);
+    } catch (error) {
+      toast.show(apiErrorMessage(error, tr), { tone: "error" });
+      return;
+    }
     forgetTrip(id);
-    setRows((current) => current?.filter((row) => row.id !== id) ?? null);
-    toast.show(tr("Trip removed from this device."));
+    await client.invalidateQueries({ queryKey: ["my-trips"] });
+    toast.show(tr("Trip removed from your account."));
   }
 
+  if (mine.isError) return <div className="mx-auto max-w-3xl px-4 pt-8"><ErrorState message={apiErrorMessage(mine.error, tr)} onRetry={() => void mine.refetch()} /></div>;
   if (rows === null) return <TripListSkeleton />;
   const groups: { key: GroupKey; title: string; rows: Row[] }[] = [
     { key: "today", title: "Today", rows: [] }, { key: "upcoming", title: "Upcoming", rows: [] },
@@ -93,14 +91,14 @@ export function TripsPage() {
   return <div className="mx-auto max-w-3xl px-4 sm:px-6">
     <div className="pt-4 lg:pt-8"><StreetPlate as="h1" size="lg">{tr("Trips")}</StreetPlate></div>
     <p className="type-small mt-3 flex items-start gap-2 text-ink-muted"><Info size={20} className="mt-1 shrink-0" aria-hidden />
-      {tr("Trips are saved only in this browser. Signing in does not show them on other devices.")}</p>
-    {rows.length === 0 ? <EmptyState title={tr("No trips on this device yet.")} action={<ButtonLink href="/plan" variant="primary">{tr("Plan my trip")}</ButtonLink>} /> :
+      {tr("Trips are saved to your account; sign in on any device to see them.")}</p>
+    {rows.length === 0 ? <EmptyState title={tr("No trips in your account yet.")} action={<ButtonLink href="/plan" variant="primary">{tr("Plan my trip")}</ButtonLink>} /> :
       groups.filter((group) => group.rows.length > 0).map((group) => <section key={group.key} aria-labelledby={`group-${group.key}`} className="mt-8">
         <h2 id={`group-${group.key}`} className="type-h3">
           <span className={`inline-flex items-center gap-2 rounded-control px-3 py-1 ${GROUP_STYLES[group.key].plate}`}>
             {group.key === "today" && <span className="live-dot h-2 w-2 rounded-full bg-white" aria-hidden />}{tr(group.title)}</span></h2>
         <ul className="mt-4 space-y-4">
-          {group.rows.map((row) => <TripRow key={row.id} row={row} group={group.key} today={today} result={results.get(row.id)} onRemove={() => remove(row.id)} />)}
+          {group.rows.map((row) => <TripRow key={row.id} row={row} group={group.key} today={today} result={results.get(row.id)} onRemove={() => void remove(row.id)} />)}
         </ul>
       </section>)}
   </div>;
@@ -150,7 +148,7 @@ function TripRow({ row, group, today, result, onRemove }: {
           <span className="type-h3 min-w-0 flex-1 group-hover:underline">{title}</span>
           <CaretRight size={20} className="shrink-0 text-ink-muted" aria-hidden />
         </Link>}
-        {!confirm && <Menu label={tr("Trip actions")} items={[{ label: tr("Remove from this device"), onSelect: () => setConfirm(true), icon: <Trash size={20} aria-hidden /> }]} />}
+        {!confirm && <Menu label={tr("Trip actions")} items={[{ label: tr("Remove from account"), onSelect: () => setConfirm(true), icon: <Trash size={20} aria-hidden /> }]} />}
       </div>
       {!broken && (facts.length > 0 || summary?.startName) && <div className="mt-3 flex flex-wrap gap-2">
         {facts[0] && <span className={`${chip} bg-sign-red-soft text-sign-red-text`}>{facts[0]}</span>}
@@ -165,8 +163,8 @@ function TripRow({ row, group, today, result, onRemove }: {
         <ButtonLink href={optionHref(row.id, option.id, null, `day=${todayDay.dayNumber}`)} variant="primary" className="mt-3">{tr("Open today's itinerary")}</ButtonLink>
       </div>}
       {todayPending && <div className="mt-3" aria-busy="true"><Skeleton className="h-24" /></div>}
-      {confirm && <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label={tr("Remove from this device")}>
-        <span className="type-small">{tr("Remove this trip from this device?")}</span>
+      {confirm && <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label={tr("Remove from account")}>
+        <span className="type-small">{tr("Remove this trip from your account?")}</span>
         <Button variant="danger" onClick={onRemove}>{tr("Remove")}</Button>
         <Button variant="text" onClick={() => setConfirm(false)}>{tr("Cancel")}</Button>
       </div>}

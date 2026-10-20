@@ -1,12 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { signIn } from "./auth";
+
 /** Go to the next form step and wait until it is shown. */
 async function nextStep(page: Page, to: number) {
   await page.getByRole("button", { name: "Tiếp tục" }).click();
   await expect(page.getByText(`Bước ${to}/4`)).toBeVisible();
 }
 
-test("pick any Hanoi starting point when address lookup is unavailable", async ({ page }) => {
+test("pick any Hanoi starting point when address lookup is unavailable", async ({ page, request }) => {
+  await signIn(page, request);
   let addressLookups = 0;
   await page.route("**/api/v1/locations/resolve?**", async (route) => {
     addressLookups += 1;
@@ -31,19 +34,20 @@ test("pick any Hanoi starting point when address lookup is unavailable", async (
   const generation = page.waitForResponse((response) => response.url().endsWith("/api/v1/trips/generate") && response.request().method() === "POST");
   await page.getByRole("button", { name: "Lập lịch trình" }).click();
   const response = await generation;
-  const request = response.request().postDataJSON() as { startLocation: { name: string; latitude: number; longitude: number } };
-  expect(request.startLocation.name).toMatch(/^Ghim bản đồ /);
-  expect(request.startLocation.latitude).toBeGreaterThan(20.45);
-  expect(request.startLocation.latitude).toBeLessThan(21.55);
-  expect(request.startLocation.longitude).toBeGreaterThan(105.18);
-  expect(request.startLocation.longitude).toBeLessThan(106.25);
+  const sent = response.request().postDataJSON() as { startLocation: { name: string; latitude: number; longitude: number } };
+  expect(sent.startLocation.name).toMatch(/^Ghim bản đồ /);
+  expect(sent.startLocation.latitude).toBeGreaterThan(20.45);
+  expect(sent.startLocation.latitude).toBeLessThan(21.55);
+  expect(sent.startLocation.longitude).toBeGreaterThan(105.18);
+  expect(sent.startLocation.longitude).toBeLessThan(106.25);
   const trip = await response.json() as { options?: unknown[] };
   expect(response.status(), JSON.stringify(trip)).toBe(200);
   expect(trip.options).toHaveLength(3);
   expect(addressLookups).toBe(0);
 });
 
-test("an unknown address sends you back to the starting point with a way forward", async ({ page }) => {
+test("an unknown address sends you back to the starting point with a way forward", async ({ page, request }) => {
+  await signIn(page, request);
   await page.route("**/api/v1/locations/resolve?**", (route) => route.fulfill({
     status: 404, json: { success: false, error: { code: "LOCATION_NOT_FOUND", message: "not found", details: null } },
   }));

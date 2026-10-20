@@ -7,11 +7,14 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.application.access import authorize_trip, rotate_share_token
-from app.application.auth import current_user, login, public_user, register
+from app.application.auth import current_user, login, logout, public_user, register
 from app.application.modify import optimize_itinerary, replace_place, set_place_lock
 from app.application.rate_limit import FixedWindowLimiter, RateLimited
 from app.application.schemas import (
+    AccountTripResponse,
     AuthResponse,
+    ClaimTripsRequest,
+    ClaimTripsResponse,
     HolidayResponse,
     LockRequest,
     LoginRequest,
@@ -29,10 +32,17 @@ from app.application.schemas import (
     TripResponse,
 )
 from app.application.stories import list_stories, story_detail
-from app.application.trips import create_trip, get_place, get_trip, holiday_responses
+from app.application.trips import (
+    account_trips,
+    claim_trips,
+    create_trip,
+    get_place,
+    get_trip,
+    holiday_responses,
+)
 from app.core.config import Settings, get_settings
 from app.domain.planner.types import TripConstraints
-from app.infrastructure.db.models import Place, PlaceReview
+from app.infrastructure.db.models import Place, PlaceReview, TripRequest, User
 from app.infrastructure.db.session import get_session
 from app.infrastructure.maps.geocoding import (
     GeocodingProvider,
@@ -40,7 +50,11 @@ from app.infrastructure.maps.geocoding import (
     NominatimGeocoder,
 )
 from app.infrastructure.maps.provider import MapProvider, OSRMMapProvider
-from app.infrastructure.weather.provider import OpenMeteoWeatherProvider, WeatherProvider
+from app.infrastructure.weather.provider import (
+    OpenMeteoWeatherProvider,
+    WeatherProvider,
+    forecast_days,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["trips"])
 DatabaseSession = Annotated[Session, Depends(get_session)]
@@ -81,6 +95,48 @@ def fetch_current_user(
     if user is None:
         raise HTTPException(status_code=401, detail="Authentication required")
     return AuthResponse(token=authorization[7:], user=public_user(user))
+
+
+@router.post("/auth/logout", status_code=204)
+def logout_user(session: DatabaseSession, authorization: Annotated[str | None, Header()] = None) -> None:
+    logout(session, authorization)
+
+
+def signed_in_user(
+    session: DatabaseSession, authorization: Annotated[str | None, Header()] = None,
+) -> User:
+    user = current_user(session, authorization)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return user
+
+
+SignedInUser = Annotated[User, Depends(signed_in_user)]
+
+
+@router.get("/me/trips", response_model=list[AccountTripResponse])
+def my_trips(session: DatabaseSession, user: SignedInUser) -> list[AccountTripResponse]:
+    return [AccountTripResponse(
+        tripId=trip.id, startDate=trip.start_date, days=trip.days, travelerCount=trip.traveler_count,
+        budgetTotal=trip.budget_total, startName=trip.start_location, createdAt=trip.created_at,
+    ) for trip in account_trips(session, user.id)]
+
+
+@router.post("/me/trips/claim", response_model=ClaimTripsResponse)
+def claim_my_trips(
+    request: ClaimTripsRequest, session: DatabaseSession, user: SignedInUser,
+) -> ClaimTripsResponse:
+    device_trips = [(item.tripId, item.ownerToken) for item in request.trips]
+    return ClaimTripsResponse(claimed=claim_trips(session, user.id, device_trips))
+
+
+@router.delete("/me/trips/{trip_id}", status_code=204)
+def delete_my_trip(trip_id: str, session: DatabaseSession, user: SignedInUser) -> None:
+    trip = session.get(TripRequest, trip_id)
+    if trip is None or trip.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    session.delete(trip)
+    session.commit()
 
 
 @lru_cache
@@ -128,11 +184,18 @@ def resolve_location(
 def generate_trip(
     request: TripConstraints, session: DatabaseSession, weather: WeatherService,
     _rate_guard: Annotated[None, Depends(guard_generation)],
+    authorization: Annotated[str | None, Header()] = None,
 ) -> TripResponse:
     today = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).date()
-    day = request.start_date or today
-    forecast = weather.forecast(request.start_location.latitude, request.start_location.longitude, day)
-    return create_trip(session, request, forecast.afternoon_rain_probability)
+    first = request.start_date or today
+    # Each day is planned with its own afternoon rain forecast (outdoor stops first on rainy days).
+    forecasts = forecast_days(
+        weather, request.start_location.latitude, request.start_location.longitude, first, request.days,
+    )
+    rain = {forecast.date: forecast.afternoon_rain_probability for forecast in forecasts}
+    # A signed-in planner's trip is saved to their account.
+    user = current_user(session, authorization)
+    return create_trip(session, request, rain, user.id if user else None)
 
 
 @router.get("/weather")
@@ -147,6 +210,18 @@ def fetch_weather(
         "afternoonRainProbability": forecast.afternoon_rain_probability,
         "warning": forecast.warning,
     }
+
+
+@router.get("/weather/days")
+def fetch_weather_days(
+    latitude: float, longitude: float, start: date, weather: WeatherService,
+    days: Annotated[int, Query(ge=1, le=14)] = 1,
+) -> list[dict[str, object]]:
+    """The afternoon rain forecast for each day of a trip."""
+    return [{
+        "date": forecast.date.isoformat(), "available": forecast.available,
+        "afternoonRainProbability": forecast.afternoon_rain_probability, "warning": forecast.warning,
+    } for forecast in forecast_days(weather, latitude, longitude, start, days)]
 
 
 @router.get("/holidays", response_model=list[HolidayResponse])

@@ -5,7 +5,7 @@ import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ApiRequestError, generateTrip } from "@/services/api";
-import { renderApp, trip } from "@/test/render";
+import { renderApp, signInForTest, trip } from "@/test/render";
 import { PlanFlow } from "./PlanFlow";
 
 const navigation = vi.hoisted(() => ({
@@ -31,7 +31,7 @@ function followSteps(rerender: () => void) {
   });
 }
 
-beforeEach(() => { navigation.params = new URLSearchParams("step=1"); });
+beforeEach(() => { navigation.params = new URLSearchParams("step=1"); signInForTest(); });
 afterEach(() => { cleanup(); vi.resetAllMocks(); vi.restoreAllMocks(); window.sessionStorage.clear(); window.localStorage.clear(); });
 
 async function renderFlow() {
@@ -41,6 +41,24 @@ async function renderFlow() {
 }
 
 describe("plan flow", () => {
+  it("sends a signed-out visitor to the Account page and back afterwards", async () => {
+    window.localStorage.clear();
+    window.history.replaceState(null, "", "/plan?step=1&days=4");
+    renderApp(<PlanFlow />);
+    await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith(`/account?next=${encodeURIComponent("/plan?step=1&days=4")}`));
+    expect(screen.queryByLabelText("Số ngày")).toBeNull();
+  });
+
+  it("saves the new trip to the signed-in account", async () => {
+    const user = userEvent.setup();
+    navigation.params = new URLSearchParams("step=4&startName=Ph%E1%BB%91%20c%E1%BB%95&startLat=21.034&startLng=105.85");
+    vi.mocked(generateTrip).mockResolvedValue(trip({ ownerToken: "owner" }));
+    await renderFlow();
+    await user.click(screen.getByRole("button", { name: "Lập lịch trình" }));
+    await waitFor(() => expect(generateTrip).toHaveBeenCalled());
+    expect(vi.mocked(generateTrip).mock.calls[0][2]).toBe("account-token");
+  });
+
   it("starts with the spec defaults and the per-person estimate", async () => {
     await renderFlow();
     expect(screen.getByRole("heading", { name: "Chuyến đi" })).toBeTruthy();
@@ -198,20 +216,32 @@ describe("getting around (F05, F06, F07, F08)", () => {
     expect(screen.queryByText(warning)).toBeNull();
   });
 
-  it("sends the daily hours and pace chosen behind the disclosure", async () => {
+  it("always shows the daily hours and sends the ones chosen", async () => {
     const user = userEvent.setup();
     navigation.params = new URLSearchParams("step=3&startName=X%20Y%20Z&startLat=21.03&startLng=105.85");
     vi.mocked(generateTrip).mockResolvedValue(trip({ ownerToken: "owner" }));
     await renderFlow();
-    await user.click(screen.getByRole("button", { name: "Giờ trong ngày và nhịp độ" }));
-    const start = screen.getByLabelText("Bắt đầu mỗi ngày") as HTMLInputElement;
-    await user.clear(start);
-    await user.type(start, "09:00");
+    await user.selectOptions(screen.getByLabelText("Bắt đầu mỗi ngày"), "09:00");
+    await user.selectOptions(screen.getByLabelText("Kết thúc mỗi ngày"), "18:30");
     await user.click(screen.getByRole("radio", { name: "năng động" }));
     await user.click(screen.getByRole("button", { name: "Tiếp tục" }));
+    expect(await screen.findByText(/Mỗi ngày 09:00–18:30/)).toBeTruthy();
     await user.click(await screen.findByRole("button", { name: "Lập lịch trình" }));
     await waitFor(() => expect(generateTrip).toHaveBeenCalled());
-    expect(vi.mocked(generateTrip).mock.calls[0][0]).toMatchObject({ dailyStartTime: "09:00", pace: "active" });
+    expect(vi.mocked(generateTrip).mock.calls[0][0]).toMatchObject({
+      dailyStartTime: "09:00", dailyEndTime: "18:30", pace: "active",
+    });
+  });
+
+  it("refuses a day that ends before it starts", async () => {
+    const user = userEvent.setup();
+    navigation.params = new URLSearchParams("step=3&startName=X%20Y%20Z&startLat=21.03&startLng=105.85");
+    await renderFlow();
+    await user.selectOptions(screen.getByLabelText("Bắt đầu mỗi ngày"), "19:00");
+    await user.selectOptions(screen.getByLabelText("Kết thúc mỗi ngày"), "10:00");
+    await user.click(screen.getByRole("button", { name: "Tiếp tục" }));
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(generateTrip).not.toHaveBeenCalled();
   });
 });
 

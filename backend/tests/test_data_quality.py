@@ -1,5 +1,7 @@
+from app.domain.planner.constraints import distance_km
 from app.infrastructure.db.osm_import import (
     COMMUNE_QUOTA,
+    catalog_places,
     commune_of,
     drop_curated_duplicates,
     is_closed,
@@ -69,12 +71,30 @@ def test_curated_places_are_real_and_sourced() -> None:
         assert source.startswith("https://"), data["slug"]
         assert "openstreetmap.org/copyright" not in source, data["slug"]
         if data["category"] in {"food", "coffee"}:
-            # "Bánh Mì 25" is named after its house number, backed by the address it lists.
+            # "Bánh Mì 25" is named after its house number, backed by the address it lists;
+            # "Bếp 1996" by the map listing of that one restaurant.
             named_by_address = "Địa chỉ:" in data.get("description_vi", "")
-            assert (not is_generic_name(data["name_vi"]) or named_by_address
+            map_listing = any(key in source for key in ("?cid=", "place_id:"))
+            assert (not is_generic_name(data["name_vi"]) or named_by_address or map_listing
                     or data["slug"] == "quan-an-ngon"), data["slug"]
     snapshot = load_snapshot()
     assert all(not is_generic_name(place.name_vi) or any(c.isdigit() for c in place.name_vi)
                for place in snapshot)
     local_food = [place for place in snapshot if place.category == "food" and "local_culture" in place.tags]
     assert len(local_food) >= 600
+
+
+def test_every_commune_has_famous_places_and_eateries_nearby() -> None:
+    """Wherever a trip starts in Hanoi, famous sights and real eateries are within reach."""
+    places = [(p.latitude, p.longitude, p.category, p.highlight_level) for p in catalog_places()] + [
+        (d["latitude"], d["longitude"], d["category"], d.get("highlight_level", "standard"))
+        for d in load_curated()["places"] if d["category"] != "festival"
+    ]
+    for name, _, rings in load_communes():
+        ring = max(rings, key=len)
+        longitude = sum(x for x, _ in ring) / len(ring)
+        latitude = sum(y for _, y in ring) / len(ring)
+        nearby = [(category, level) for lat, lon, category, level in places
+                  if distance_km(latitude, longitude, lat, lon) <= 10]
+        assert any(level != "standard" and category not in {"food", "coffee"} for category, level in nearby), name
+        assert sum(category in {"food", "coffee"} for category, _ in nearby) >= 3, name

@@ -40,6 +40,40 @@ export async function loginAccount(identifier: string, password: string): Promis
   return parseResponse<AuthResponse>(response);
 }
 
+/** Ends this device's session; other devices stay signed in. */
+export async function logoutAccount(token: string): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/api/v1/auth/logout`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+  } catch { /* signing out on this device still works offline */ }
+}
+
+/** One trip saved to the signed-in account. */
+export type AccountTrip = {
+  tripId: string; startDate: string | null; days: number; travelerCount: number;
+  budgetTotal: number; startName: string; createdAt: string;
+};
+
+export async function fetchMyTrips(token: string): Promise<AccountTrip[]> {
+  const response = await fetch(`${API_BASE}/api/v1/me/trips`, { headers: { Authorization: `Bearer ${token}` } });
+  return parseResponse<AccountTrip[]>(response);
+}
+
+/** Save trips made on this device before signing in to the account (each needs its owner token). */
+export async function claimTrips(token: string, trips: { tripId: string; ownerToken: string }[]): Promise<string[]> {
+  const response = await fetch(`${API_BASE}/api/v1/me/trips/claim`, {
+    method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ trips }),
+  });
+  return (await parseResponse<{ claimed: string[] }>(response)).claimed;
+}
+
+export async function deleteMyTrip(token: string, tripId: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/v1/me/trips/${encodeURIComponent(tripId)}`, {
+    method: "DELETE", headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok && response.status !== 404) await parseResponse<unknown>(response);
+}
+
 async function resolveStartLocation(values: TripFormValues): Promise<Coordinate> {
   if (values.startLocationCoordinates) return values.startLocationCoordinates;
   const known = START_COORDINATES[values.startLocationName as keyof typeof START_COORDINATES];
@@ -72,7 +106,8 @@ async function parseResponse<T>(response: Response): Promise<T> {
   return data as T;
 }
 
-export function generateTrip(values: TripFormValues, signal?: AbortSignal): Promise<TripResponse> {
+/** With the account token, the new trip is saved to that account. */
+export function generateTrip(values: TripFormValues, signal?: AbortSignal, authToken?: string | null): Promise<TripResponse> {
   const key = JSON.stringify(values);
   if (recentGeneration?.key === key && (
     !recentGeneration.settled || performance.now() < recentGeneration.expiresAt
@@ -80,7 +115,8 @@ export function generateTrip(values: TripFormValues, signal?: AbortSignal): Prom
     return recentGeneration.promise;
   }
   const promise = resolveStartLocation(values).then((coordinates) => fetch(`${API_BASE}/api/v1/trips/generate`, {
-    method: "POST", headers: { "Content-Type": "application/json" }, signal,
+    method: "POST", signal,
+    headers: { "Content-Type": "application/json", ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
     body: JSON.stringify({
     language: values.language,
     startDate: values.startDate || null,
@@ -189,6 +225,13 @@ export async function fetchStories(language: "en" | "vi"): Promise<StorySummary[
 export async function fetchStory(slug: string, language: "en" | "vi"): Promise<StoryDetail> {
   const response = await fetch(`${API_BASE}/api/v1/stories/${encodeURIComponent(slug)}?language=${language}`);
   return parseResponse<StoryDetail>(response);
+}
+
+/** The afternoon rain forecast for each day of a trip (days beyond the forecast horizon say so). */
+export async function fetchWeatherDays(latitude: number, longitude: number, start: string, days: number): Promise<Weather[]> {
+  const params = new URLSearchParams({ latitude: String(latitude), longitude: String(longitude), start, days: String(days) });
+  const response = await fetch(`${API_BASE}/api/v1/weather/days?${params}`);
+  return parseResponse<Weather[]>(response);
 }
 
 export async function fetchWeather(latitude: number, longitude: number, day?: string): Promise<Weather> {

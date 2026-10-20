@@ -1,3 +1,4 @@
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -205,6 +206,31 @@ class TripResponse(BaseModel):
 
 class ShareResponse(BaseModel):
     shareToken: str
+
+
+class AccountTripResponse(BaseModel):
+    """One trip saved to the signed-in account (the Trips list)."""
+    tripId: str
+    startDate: date | None
+    days: int
+    travelerCount: int
+    budgetTotal: int
+    startName: str
+    createdAt: datetime
+
+
+class DeviceTrip(BaseModel):
+    tripId: str = Field(min_length=1, max_length=36)
+    ownerToken: str = Field(min_length=1, max_length=200)
+
+
+class ClaimTripsRequest(BaseModel):
+    """Trips made on this device before signing in, to save to the account."""
+    trips: list[DeviceTrip] = Field(default_factory=list, max_length=200)
+
+
+class ClaimTripsResponse(BaseModel):
+    claimed: list[str]
 
 
 class MapCoordinate(BaseModel):

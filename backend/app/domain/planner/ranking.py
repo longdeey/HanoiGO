@@ -29,6 +29,11 @@ def featured_tier(place: PlaceCandidate) -> float:
     return FEATURED_TIER_SCORES.get(place.highlight_level, FEATURED_TIER_SCORES["standard"])
 
 
+def famous_tier_rank(place: PlaceCandidate) -> int:
+    """2 for a must-see place, 1 for a notable one, 0 otherwise."""
+    return {"must_see": 2, "notable": 1}.get(place.highlight_level, 0)
+
+
 def feedback_score(place: PlaceCandidate) -> float:
     """Bayesian average of 1-5 star reviews, mapped to 0..100."""
     rating = (

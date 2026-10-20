@@ -8,10 +8,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AnimatePresence } from "motion/react";
 import * as m from "motion/react-m";
-import { ArrowsClockwise, CaretLeft, CloudRain, PencilSimple, ShareNetwork, SquaresFour, Sun } from "@phosphor-icons/react";
+import { ArrowsClockwise, CaretLeft, CloudRain, CloudSlash, PencilSimple, ShareNetwork, SquaresFour, Sun } from "@phosphor-icons/react";
 
-import type { ItineraryItem, ItineraryOption, TripResponse } from "@/types/trip";
-import { createShareToken, fetchWeather, optimizeTrip, replacePlace, type OptimizeStrategy, type ReplaceReason } from "@/services/api";
+import type { ItineraryItem, ItineraryOption, TripResponse, Weather } from "@/types/trip";
+import { createShareToken, fetchWeatherDays, optimizeTrip, replacePlace, type OptimizeStrategy, type ReplaceReason } from "@/services/api";
 import { mapTileOrigin } from "@/services/map-provider";
 import { usePrefs } from "@/lib/prefs";
 import { nameLang } from "@/lib/lang";
@@ -146,11 +146,13 @@ function ItineraryBody({ trip, option, share, readOnly, ownerToken }: {
     return () => { observer.disconnect(); root.style.removeProperty("--itinerary-bar"); root.style.scrollPaddingTop = ""; };
   }, []);
 
+  // One afternoon forecast per trip day; days beyond the forecast horizon say so.
   const weather = useQuery({
-    queryKey: ["weather", start?.latitude, start?.longitude, option.days[0]?.date],
-    queryFn: () => fetchWeather(start!.latitude, start!.longitude, option.days[0].date),
+    queryKey: ["weather-days", start?.latitude, start?.longitude, option.days[0]?.date, option.days.length],
+    queryFn: () => fetchWeatherDays(start!.latitude, start!.longitude, option.days[0].date, option.days.length),
     enabled: Boolean(start && option.days[0]?.date), staleTime: 30 * 60 * 1000, retry: false,
   });
+  const forecastFor = (date: string) => weather.data?.find((entry) => entry.date === date);
 
   function navigate(next: { day?: number; view?: View }, replace = false) {
     const query = new URLSearchParams(params.toString());
@@ -297,7 +299,8 @@ function ItineraryBody({ trip, option, share, readOnly, ownerToken }: {
       <div className="rail min-w-0 gap-2" role="group" aria-label={tr("Days")}>
         {option.days.map((item) => {
           const current = item.dayNumber === dayNumber;
-          const forecast = weather.data?.available && weather.data.date === item.date ? weather.data : null;
+          const entry = forecastFor(item.date);
+          const forecast = entry?.available && entry.afternoonRainProbability !== null ? entry : null;
           const rainy = (forecast?.afternoonRainProbability ?? 0) >= RAIN_THRESHOLD;
           return <button key={item.dayNumber} type="button" aria-pressed={current} onClick={() => navigate({ day: item.dayNumber })}
             className={`press flex min-h-[48px] min-w-[104px] flex-col justify-center rounded-control border px-3 text-left ${current ? "border-hero-red bg-hero-red text-white" : "border-line-strong hover:bg-paper-sunken"}`}>
@@ -308,8 +311,13 @@ function ItineraryBody({ trip, option, share, readOnly, ownerToken }: {
             <span className={`type-small flex items-center gap-1 ${current ? "text-white" : "text-ink-muted"}`}>
               {formatDayShort(item.date, language)}
               {forecast && forecast.afternoonRainProbability !== null && <>
-                {rainy ? <CloudRain size={20} aria-hidden /> : <Sun size={20} aria-hidden />}
+                {rainy ? <CloudRain size={18} aria-hidden /> : <Sun size={18} aria-hidden />}
+                <span className="tnum" aria-hidden>{Math.round(forecast.afternoonRainProbability * 100)}%</span>
                 <span className="sr-only">{tr(rainy ? "Rain likely in the afternoon" : "Dry afternoon likely")} ({Math.round(forecast.afternoonRainProbability * 100)}%)</span>
+              </>}
+              {entry && !forecast && <>
+                <CloudSlash size={18} aria-hidden />
+                <span className="sr-only">{tr("No forecast yet for this day")}</span>
               </>}
             </span>
           </button>;
@@ -331,6 +339,7 @@ function ItineraryBody({ trip, option, share, readOnly, ownerToken }: {
         <m.div key={dayNumber} initial={dayDirection === 0 ? false : { opacity: 0, x: 24 * dayDirection }} animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3, ease: [0.05, 0.7, 0.1, 1] }}>
           {view === "timeline" && <>
+            <DayForecast entry={forecastFor(day.date)} />
             {timeline}
             {!readOnly && <div className="mt-6"><Button variant="secondary" onClick={() => setOptimizing(true)}><ArrowsClockwise size={20} aria-hidden />{tr("Re-optimize")}</Button></div>}
           </>}
@@ -405,3 +414,22 @@ function MapView({ map, items, selectedId, onSelect, onOpen }: {
   </div>;
 }
 
+
+/** The day's afternoon forecast above its timeline, or why there is none yet. */
+function DayForecast({ entry }: { entry: Weather | undefined }) {
+  const { tr } = usePrefs();
+  if (!entry) return null;
+  const chance = entry.available && entry.afternoonRainProbability !== null ? Math.round(entry.afternoonRainProbability * 100) : null;
+  const rainy = chance !== null && chance >= RAIN_THRESHOLD * 100;
+  const Icon = chance === null ? CloudSlash : rainy ? CloudRain : Sun;
+  const tone = chance === null ? "bg-paper-sunken text-ink-muted" : rainy ? "bg-sign-blue-soft text-sign-blue" : "bg-wall-yellow-soft text-warn-ink";
+  return <p className={`type-small mb-4 flex items-start gap-2 rounded-control px-3 py-2 ${tone}`}>
+    <Icon size={20} className="mt-0.5 shrink-0" aria-hidden />
+    {chance === null
+      ? <span>{tr("No forecast yet for this day")}. {tr("Forecasts come out up to 16 days ahead.")}</span>
+      : <span>
+        <strong className="font-semibold">{tr(rainy ? "Rain likely in the afternoon" : "Dry afternoon likely")}</strong>
+        {" "}({tr("rain chance")} <span className="tnum">{chance}%</span>){rainy && <>. {tr("Outdoor stops come first today.")}</>}
+      </span>}
+  </p>;
+}

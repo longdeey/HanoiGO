@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/Button";
 import { Collage, type Canvas, type Clip } from "@/components/ui/Collage";
 import { ErrorState, apiErrorMessage } from "@/components/ui/States";
 import { StepInterests, StepStart, StepTrip, StepTravel } from "./PlanSteps";
+import { SignInGate } from "@/components/account/SignInGate";
 import { WaitingScreen } from "./WaitingScreen";
 
 const PinPicker = dynamic(() => import("./PinPicker"), { ssr: false });
@@ -110,8 +111,13 @@ function urlPrefill(params: URLSearchParams): Partial<TripFormValues> {
 
 type Outcome = { kind: "infeasible"; message: string; details: string[] } | { kind: "error"; message: string } | null;
 
+/** Planning needs an account: the trip is saved to it. */
 export function PlanFlow() {
-  const { tr, language } = usePrefs();
+  return <SignInGate><PlanForm /></SignInGate>;
+}
+
+function PlanForm() {
+  const { tr, language, auth } = usePrefs();
   const router = useRouter();
   const params = useSearchParams();
   const client = useQueryClient();
@@ -161,7 +167,7 @@ export function PlanFlow() {
   const mutation = useMutation({
     mutationFn: (values: TripFormValues) => {
       abort.current = new AbortController();
-      return generateTrip(values, abort.current.signal);
+      return generateTrip(values, abort.current.signal, auth?.token);
     },
     onSuccess: (trip, values) => {
       saveTrip(trip, {

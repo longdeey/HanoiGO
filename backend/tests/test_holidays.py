@@ -123,6 +123,6 @@ def test_snapshot_rows_duplicating_curated_places_are_dropped() -> None:
     assert drop_curated_duplicates([nearby_food]) == [nearby_food]
     # A different pagoda 59 m from Phu Dong Temple is a separate venue.
     other_pagoda = replace(nearby_food, slug="chua-kien-bai-osm-2", name_en="Chùa Kiến Bái", name_vi="Chùa Kiến Bái",
-                           latitude=21.0554316, longitude=105.9604847, category="history",
+                           latitude=21.0547308, longitude=105.9613377, category="history",
                            source="https://www.openstreetmap.org/node/2")
     assert drop_curated_duplicates([other_pagoda]) == [other_pagoda]

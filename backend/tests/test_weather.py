@@ -1,4 +1,5 @@
-from datetime import date
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import httpx
 from fastapi.testclient import TestClient
@@ -34,7 +35,7 @@ def test_weather_provider_falls_back_after_bounded_failures(monkeypatch) -> None
         raise httpx.ConnectError("offline")
 
     monkeypatch.setattr(httpx.Client, "get", fail_get)
-    forecast = OpenMeteoWeatherProvider().forecast(21.034, 105.85, date(2026, 9, 15))
+    forecast = OpenMeteoWeatherProvider().forecast(21.034, 105.85, datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).date() + timedelta(days=2))
     assert attempts == OpenMeteoWeatherProvider.MAX_ATTEMPTS
     assert not forecast.available
     assert forecast.afternoon_rain_probability is None

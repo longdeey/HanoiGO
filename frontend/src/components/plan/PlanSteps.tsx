@@ -157,8 +157,6 @@ export function StepTravel({ form }: { form: Form }) {
   const { tr } = usePrefs();
   const error = useErrorText(form);
   const values = form.watch();
-  const [more, setMore] = useState(false);
-  const hoursOpen = more || Boolean(error("dailyStartTime") || error("dailyEndTime"));
   const walkingTooFar = values.travelMode === "walking" && RADIUS_KM[values.travelRadiusMode] > 10;
   return <div className="space-y-8">
     <StreetPlate as="h2" size="lg">{tr("How will you get around?")}</StreetPlate>
@@ -181,27 +179,39 @@ export function StepTravel({ form }: { form: Form }) {
         {tr("Walking only searches within 10 km and covers at most 10 km a day. Choose motorbike or car to go further.")}
       </Notice></div>}
     </div>
-    <div>
-      <button type="button" aria-expanded={hoursOpen} onClick={() => setMore(!hoursOpen)}
-        className="min-h-[44px] font-semibold text-sign-red-text underline-offset-4 hover:underline">
-        {tr(hoursOpen ? "Fewer options" : "Daily hours and pace")}
-      </button>
-      {hoursOpen && <div className="mt-4 space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field htmlFor="dailyStartTime" label={tr("Daily start")} error={error("dailyStartTime")}>
-            <input id="dailyStartTime" type="time" {...form.register("dailyStartTime")} className="field tnum"
-              aria-invalid={Boolean(error("dailyStartTime")) || undefined} aria-describedby={describedBy("dailyStartTime", undefined, error("dailyStartTime"))} />
-          </Field>
-          <Field htmlFor="dailyEndTime" label={tr("Daily end")} error={error("dailyEndTime")}>
-            <input id="dailyEndTime" type="time" {...form.register("dailyEndTime")} className="field tnum"
-              aria-invalid={Boolean(error("dailyEndTime")) || undefined} aria-describedby={describedBy("dailyEndTime", undefined, error("dailyEndTime"))} />
-          </Field>
-        </div>
-        <Segmented label={tr("Pace")} value={values.pace} onChange={(value) => form.setValue("pace", value)}
-          options={(["relaxed", "balanced", "active"] as const).map((value) => ({ value, label: tr(value) }))} />
-      </div>}
-    </div>
+    {/* Always on show: every day of the plan starts and ends within half an hour of these. */}
+    <fieldset>
+      <legend className="mb-2 font-semibold">{tr("Daily hours")}</legend>
+      <div className="grid grid-cols-2 gap-4">
+        {(["dailyStartTime", "dailyEndTime"] as const).map((name) => <Field key={name} htmlFor={name}
+          label={tr(name === "dailyStartTime" ? "Daily start" : "Daily end")} error={error(name)}>
+          <TimeSelect id={name} value={values[name]} invalid={Boolean(error(name))}
+            describedById={describedBy(name, "hint", error(name))}
+            onChange={(value) => form.setValue(name, value, { shouldValidate: true, shouldDirty: true })} />
+        </Field>)}
+      </div>
+      <p id="dailyStartTime-hint" className="type-small mt-2 text-ink-muted">
+        {tr("Each day starts and ends within 30 minutes of these times.")}</p>
+    </fieldset>
+    <Segmented label={tr("Pace")} value={values.pace} onChange={(value) => form.setValue("pace", value)}
+      options={(["relaxed", "balanced", "active"] as const).map((value) => ({ value, label: tr(value) }))} />
   </div>;
+}
+
+/** Every half hour from 05:00 to 23:30, plus the current value when it is off the grid. */
+const TIME_CHOICES = Array.from({ length: 38 }, (_, index) => {
+  const minutes = 5 * 60 + index * 30;
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${minutes % 60 ? "30" : "00"}`;
+});
+
+function TimeSelect({ id, value, onChange, invalid, describedById }: {
+  id: string; value: string; onChange: (value: string) => void; invalid?: boolean; describedById?: string;
+}) {
+  const choices = TIME_CHOICES.includes(value) || !value ? TIME_CHOICES : [...TIME_CHOICES, value].sort();
+  return <select id={id} value={value} onChange={(event) => onChange(event.target.value)}
+    aria-invalid={invalid || undefined} aria-describedby={describedById} className="field tnum text-lg font-semibold">
+    {choices.map((time) => <option key={time} value={time}>{time}</option>)}
+  </select>;
 }
 
 // ── Step 4: interests and summary ───────────────────────────────────────
@@ -233,6 +243,7 @@ export function StepInterests({ form, onEdit }: { form: Form; onEdit: (step: num
           { label: tr("Trip"), value: `${values.days} ${tr(values.days === 1 ? "day" : "days")}, ${values.travelerCount} ${tr(values.travelerCount === 1 ? "person" : "people")}`, step: 1 },
           { label: tr("Budget"), value: formatMoney(values.budgetTotal || 0, language), step: 1 },
           { label: tr("Starting point"), value: <>{tr("From")} <span lang={nameLang(values.startLocationName, language)}>{values.startLocationName || "—"}</span>, {mode.toLocaleLowerCase(language)}, {RADIUS_KM[values.travelRadiusMode]} km</>, step: 2 },
+          { label: tr("Daily hours"), value: <span className="tnum">{tr("Every day")} {values.dailyStartTime}–{values.dailyEndTime}</span>, step: 3 },
         ].map((row) => <div key={row.label} className="flex items-center gap-3 py-2">
           <dt className="sr-only">{row.label}</dt>
           <dd className="flex flex-1 items-center gap-3">

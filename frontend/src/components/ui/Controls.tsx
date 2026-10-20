@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useLayoutEffect, useRef } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
 import { Minus, Plus } from "@phosphor-icons/react";
@@ -109,6 +109,12 @@ export function MoneyInput({ id, value, onChange, language, invalid, describedBy
   const display = Number.isFinite(value) && value > 0 ? formatAmount(value, language) : "";
   const input = useRef<HTMLInputElement>(null);
   const caretDigits = useRef<number | null>(null);
+  // Raw text while an input method (Vietnamese Telex/VNI, phone keyboards) is
+  // composing: regrouping mid-composition duplicates or drops digits.
+  const [draft, setDraft] = useState<string | null>(null);
+  // Bumped on every edit, so the caret is restored even when the amount does
+  // not change (a letter typed, a digit past the cap) and React resets the text.
+  const [edits, setEdits] = useState(0);
   // Keep the caret after the same digit once the separators move.
   useLayoutEffect(() => {
     const element = input.current;
@@ -121,14 +127,40 @@ export function MoneyInput({ id, value, onChange, language, invalid, describedBy
     }
     caretDigits.current = null;
     element.setSelectionRange(position, position);
-  }, [display]);
+  }, [display, edits]);
+  const commit = (text: string, caret: number | null) => {
+    caretDigits.current = text.slice(0, caret ?? text.length).replace(/\D/g, "").length;
+    const digits = text.replace(/\D/g, "").slice(0, MONEY_MAX_DIGITS);
+    caretDigits.current = Math.min(caretDigits.current, digits.replace(/^0+/, "").length);
+    setEdits((count) => count + 1);
+    onChange(digits ? Number(digits) : 0);
+  };
   return <div className="relative">
-    <input ref={input} id={id} inputMode="numeric" autoComplete="off" value={display}
+    <input ref={input} id={id} inputMode="numeric" autoComplete="off" value={draft ?? display}
+      onCompositionStart={(event) => setDraft(event.currentTarget.value)}
+      onCompositionEnd={(event) => {
+        setDraft(null);
+        commit(event.currentTarget.value, event.currentTarget.selectionStart);
+      }}
+      onKeyDown={(event) => {
+        // Backspace right after a separator (or Delete right before one)
+        // removes the digit next to it instead of doing nothing.
+        const element = event.currentTarget;
+        const start = element.selectionStart ?? 0;
+        if (start !== element.selectionEnd || draft !== null) return;
+        if (event.key === "Backspace" && start > 0 && /\D/.test(element.value[start - 1])) {
+          element.setSelectionRange(start - 1, start - 1);
+        } else if (event.key === "Delete" && start < element.value.length && /\D/.test(element.value[start])) {
+          element.setSelectionRange(start + 1, start + 1);
+        }
+      }}
       onChange={(event) => {
         const text = event.target.value;
-        caretDigits.current = text.slice(0, event.target.selectionStart ?? text.length).replace(/\D/g, "").length;
-        const digits = text.replace(/\D/g, "").slice(0, MONEY_MAX_DIGITS);
-        onChange(digits ? Number(digits) : 0);
+        if (draft !== null || (event.nativeEvent as InputEvent).isComposing) {
+          setDraft(text);
+          return;
+        }
+        commit(text, event.target.selectionStart);
       }}
       aria-invalid={invalid || undefined} aria-describedby={describedById}
       className="field tnum pr-16 text-lg font-semibold" style={{ fontStretch: "112%" }} />

@@ -1,19 +1,24 @@
 import { expect, test } from "@playwright/test";
 
+import { signIn } from "./auth";
+
 test.describe("phone navigation", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test("moves through the five destinations from the bottom bar", async ({ page }) => {
     await page.goto("/", { waitUntil: "networkidle" });
     const nav = page.getByRole("navigation", { name: "Điều hướng chính" });
-    for (const [label, path] of [["Chuyện Hà Nội", "/stories"], ["Lễ hội", "/festivals"], ["Chuyến đi", "/trips"], ["Trang chủ", "/"]] as const) {
+    for (const [label, path] of [["Chuyện Hà Nội", "/stories"], ["Lễ hội", "/festivals"], ["Trang chủ", "/"]] as const) {
       await nav.getByRole("link", { name: label }).click();
       await expect(page).toHaveURL(new RegExp(`${path}$`));
       await expect(nav.getByRole("link", { name: label })).toHaveAttribute("aria-current", "page");
     }
+    await nav.getByRole("link", { name: "Chuyến đi" }).click();
+    // Signed out, Trips and Plan send you to the Account page to sign in or register.
+    await expect(page).toHaveURL(/\/account\?next=%2Ftrips/);
     await nav.getByRole("link", { name: "Lập lịch" }).click();
-    await expect(page).toHaveURL(/\/plan/);
-    await expect(page.getByRole("navigation", { name: "Điều hướng chính" })).toHaveCount(0);
+    await expect(page).toHaveURL(/\/account\?next=%2Fplan/);
+    await expect(page.getByRole("tab", { name: "Đăng ký" })).toBeVisible();
   });
 });
 
@@ -38,7 +43,8 @@ test("Back and Forward restore the day and the view", async ({ page, request }) 
   await expect(page.getByRole("button", { name: "Chi phí", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
 
-test("reading a story leads to planning from that landmark", async ({ page }) => {
+test("reading a story leads to planning from that landmark", async ({ page, request }) => {
+  await signIn(page, request);
   await page.goto("/?story=van-mieu-quoc-tu-giam");
   await expect(page).toHaveURL(/\/stories\/van-mieu-quoc-tu-giam/);
   await expect(page.getByRole("heading", { level: 1, name: /Văn Miếu/ })).toBeVisible();
@@ -48,7 +54,8 @@ test("reading a story leads to planning from that landmark", async ({ page }) =>
   await expect(page.getByText(/Đã đặt điểm/)).toBeVisible();
 });
 
-test("a festival leads to planning for its dates", async ({ page }) => {
+test("a festival leads to planning for its dates", async ({ page, request }) => {
+  await signIn(page, request);
   await page.goto("/festivals");
   await page.getByRole("button", { name: "Cả năm" }).click();
   const first = page.getByRole("link", { name: "Lập lịch vào dịp này" }).first();

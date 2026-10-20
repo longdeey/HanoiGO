@@ -14,6 +14,13 @@ Usage (from ``backend/``)::
     python -m app.infrastructure.db.osm_import            # snapshot -> database (idempotent)
     python -m app.infrastructure.db.osm_import fetch --import
 
+OpenStreetMap lists every named park, statue and shrine, most of which no
+traveler would visit. ``data/place_curation.json`` records a human review of
+the snapshot: places to leave out (residential parks, anonymous statues,
+offices...), famous places to promote to ``notable`` or ``must_see`` and
+corrected names or categories. It is applied on every import, so a fresh
+snapshot cannot bring the reviewed junk back.
+
 Data © OpenStreetMap contributors, ODbL: https://www.openstreetmap.org/copyright
 """
 
@@ -90,6 +97,11 @@ CATEGORY_CAPS = {
 # trip starting anywhere in Hanoi finds nearby stops.
 COMMUNE_QUOTA = {"attraction": 4, "food": 4}
 COMMUNES_PATH = DATA_DIR / "hanoi_communes.json"
+CURATION_PATH = DATA_DIR / "place_curation.json"
+HIGHLIGHT_LEVELS = ("standard", "notable", "must_see")
+# Fields a curation "fix" may correct on an imported place.
+FIXABLE_FIELDS = ("name_vi", "name_en", "category", "tags", "indoor", "outdoor", "average_cost",
+                  "entrance_fee", "average_visit_minutes", "opening_hours")
 
 # Words that only say what a place is ("phở", "chùa", "quán"...). A name made of
 # nothing else ("Bánh cuốn nóng gia truyền", "Chợ đêm", "Đình làng") does not
@@ -115,8 +127,17 @@ CLOSED_NAME = re.compile(
 # Local war memorials and family shrines are real but not visitor destinations.
 NOT_A_DESTINATION = re.compile(
     r"(liệt sĩ|nghĩa trang|nghĩa địa|nhà thờ họ|từ đường|ubnd|ủy ban|công ty|\bcty\b|ngân hàng|"
-    r"bệnh viện|trạm y tế|trường (mầm non|tiểu học|thcs|thpt|trung học)|văn phòng)", re.IGNORECASE,
+    r"bệnh viện|trạm y tế|trường (mầm non|tiểu học|thcs|thpt|trung học)|văn phòng|chung cư|"
+    r"khu đô thị|\bkđt\b|khu tập thể|tòa nhà|toà nhà|trụ sở|đại sứ quán|embassy|nhà văn hóa|"
+    r"nhà văn hoá|sân bóng|sân tập|resident(ial)? area|apartment)", re.IGNORECASE,
 )
+# "Công viên A", "Park B", "Vườn hoa số 3": a lettered or numbered park is a
+# residential green, not a place travelers visit.
+LETTERED_PARK = re.compile(
+    r"^(công viên|cong vien|vườn hoa|vuon hoa|park|garden)\s+(số\s*\d+|[a-z]|\d+)(\s|$)", re.IGNORECASE,
+)
+# A statue named only for what it shows ("Tượng Phật") cannot be found or told apart.
+ANONYMOUS_STATUE = re.compile(r"^((tượng|statue)(\s+(phật|đài|buddha))?|buddha statue)$", re.IGNORECASE)
 # Linear infrastructure occasionally carries tourism tags (a railway line, a
 # highway viewpoint); it is not a place a traveler can visit as a stop.
 INFRASTRUCTURE_KEYS = ("railway", "route", "highway", "waterway", "power", "aeroway")
@@ -203,6 +224,7 @@ class ImportedPlace:
     detail_count: int = 0
     signals: list[str] = field(default_factory=list)
     commune: str | None = None
+    highlight_level: str = "standard"
 
 
 class OverpassUnavailable(Exception):
@@ -451,7 +473,8 @@ def _classify(tags: dict[str, str], name: str) -> tuple[str, list[str], bool, bo
     shop = tags.get("shop", "")
     if any(key in tags for key in INFRASTRUCTURE_KEYS):
         return None
-    if is_closed(tags, name) or is_generic_name(name, tags) or NOT_A_DESTINATION.search(name):
+    if (is_closed(tags, name) or is_generic_name(name, tags) or NOT_A_DESTINATION.search(name)
+            or LETTERED_PARK.match(name) or ANONYMOUS_STATUE.match(name.strip())):
         return None
     if CRAFT_NAME.search(name) or tags.get("craft"):
         return "local_experience", ["craft", "local_culture", "shopping"], True, True
@@ -788,6 +811,40 @@ def apply_category_caps(places: list[ImportedPlace]) -> list[ImportedPlace]:
 # --- Snapshot and database ----------------------------------------------------
 
 
+@lru_cache(maxsize=1)
+def load_curation(path: Path = CURATION_PATH) -> dict[str, dict[str, Any]]:
+    """The reviewed exclusions, promotions and fixes (empty when the file is missing)."""
+    if not path.exists():
+        return {"exclude": {}, "promote": {}, "fix": {}}
+    document = json.loads(path.read_text(encoding="utf-8"))
+    return {key: document.get(key, {}) for key in ("exclude", "promote", "fix")}
+
+
+def apply_curation(
+    places: list[ImportedPlace], curation: dict[str, dict[str, Any]] | None = None,
+) -> list[ImportedPlace]:
+    """Leave out the places a reviewer excluded; apply their promotions and fixes."""
+    curation = load_curation() if curation is None else curation
+    curated: list[ImportedPlace] = []
+    for place in places:
+        if place.slug in curation["exclude"]:
+            continue
+        changes = {key: value for key, value in curation["fix"].get(place.slug, {}).items()
+                   if key in FIXABLE_FIELDS}
+        promotion = curation["promote"].get(place.slug)
+        if promotion:
+            changes["highlight_level"] = promotion["level"]
+            changes.update({key: promotion[key] for key in ("entrance_fee", "average_visit_minutes", "opening_hours")
+                            if promotion.get(key) is not None})
+        curated.append(replace(place, **changes) if changes else place)
+    return curated
+
+
+def catalog_places(path: Path = SNAPSHOT_PATH) -> list[ImportedPlace]:
+    """The snapshot as it reaches the database: curated duplicates dropped, review applied."""
+    return apply_curation(drop_curated_duplicates(load_snapshot(path)))
+
+
 def fetch_snapshot(
     path: Path = SNAPSHOT_PATH, raw_path: Path = RAW_PATH, *, log=print,
 ) -> list[ImportedPlace]:
@@ -902,7 +959,7 @@ def import_places(
             place.price_source = None
             place.hours_source = item.source if item.hours_from_osm else None
             place.source = item.source
-            place.highlight_level = "standard"
+            place.highlight_level = item.highlight_level
             place.is_active = True
     return inserted, updated, deactivated
 
@@ -930,7 +987,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Snapshot {args.snapshot} not found. Run the fetch command first.", file=sys.stderr)
             return 1
         places = load_snapshot(args.snapshot)
-    places = drop_curated_duplicates(places)
+    places = apply_curation(drop_curated_duplicates(places))
     inserted, updated, deactivated = import_places(places, deactivate_missing=True)
     print(f"Imported {inserted} new, refreshed {updated} and deactivated {deactivated} "
           "OpenStreetMap places")

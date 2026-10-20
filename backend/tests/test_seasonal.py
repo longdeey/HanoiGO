@@ -4,7 +4,7 @@ from datetime import date
 from fastapi.testclient import TestClient
 from test_constraints_ranking import place, trip
 
-from app.domain.planner.constraints import filter_candidates, fits_opening_hours
+from app.domain.planner.constraints import distance_km, filter_candidates, fits_opening_hours
 from app.domain.planner.planner import generate_options
 from app.domain.planner.ranking import score_candidate
 from app.domain.planner.scheduling import build_day, opening_start
@@ -132,5 +132,9 @@ def test_hòa_lạc_start_has_local_places_and_stays() -> None:
     assert response.status_code == 200, response.text
     payload = response.json()
     assert all(option["days"] for option in payload["options"])
-    assert any("Hòa Lạc" in item["place"]["name"] for option in payload["options"] for day in option["days"] for item in day["items"])
+    # Every option shows something famous around the base, not only downtown.
+    for option in payload["options"]:
+        assert any(item["place"]["highlightLevel"] != "standard"
+                   and distance_km(21.015, 105.525, item["place"]["latitude"], item["place"]["longitude"]) <= 15
+                   for day in option["days"] for item in day["items"]), option["type"]
     assert any(item["category"] == "accommodation" for item in payload["stayOptions"])

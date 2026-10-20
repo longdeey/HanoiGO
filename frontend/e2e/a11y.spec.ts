@@ -1,6 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
+import { createAccount, signInPage } from "./auth";
+
 // Spec §11/§14: axe on every main route, light and dark, no serious or
 // critical violations. Reduced motion keeps colours out of mid-animation states.
 test.use({ contextOptions: { reducedMotion: "reduce" } });
@@ -8,9 +10,11 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 type ApiTrip = { tripId: string; ownerToken: string; options: { id: string; days: { items: { place: { id: string } }[] }[] }[] };
 
 let trip: ApiTrip;
+let account: { token: string; user: unknown };
 
 test.beforeAll(async ({ request }) => {
-  const response = await request.post("http://localhost:8000/api/v1/trips/generate", { data: {
+  account = await createAccount(request);
+  const response = await request.post("http://localhost:8000/api/v1/trips/generate", { headers: { Authorization: `Bearer ${account.token}` }, data: {
     language: "vi", startDate: "2026-11-20", days: 2, travelerCount: 2, budgetTotal: 2_000_000,
     startLocation: { name: "Phố cổ", latitude: 21.034, longitude: 105.85 }, interests: ["history", "food"],
     travelMode: "walking", travelRadiusMode: "balanced", pace: "balanced", experiencePreferences: ["local"],
@@ -59,6 +63,7 @@ for (const theme of ["light", "dark"] as const) {
       test.setTimeout(180_000);
       await context.addCookies([{ name: "hanoigo-theme", value: theme, url: "http://localhost:3000" }]);
       await page.setViewportSize(viewport);
+      await signInPage(page, account);
       await page.goto("/");
       await page.evaluate(([id, token]) => localStorage.setItem(`hanoigo-owner-${id}`, token), [trip.tripId, trip.ownerToken]);
       const problems: string[] = [];
