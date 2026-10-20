@@ -68,3 +68,18 @@ def test_every_option_moves_straight_on_to_the_next_stop() -> None:
                     assert item.start_minute == previous.end_minute + item.travel_minutes, (
                         values, option.option_type, day.day_number, item.place.slug,
                     )
+
+
+def test_a_short_day_from_my_dinh_still_gets_three_different_options() -> None:
+    # One day, 09:00-19:00, from 1 Phan Tây Nhạc: the same must-see sights and
+    # meals used to come back for every option.
+    with SessionLocal() as session:
+        places = [candidate_from_place(place) for place in PlaceRepository(session).list_active()]
+    for start in (date(2026, 12, 10), date(2026, 10, 24)):
+        constraints = trip(startDate=start, days=1, travelerCount=2, budgetTotal=1_500_000,
+                           interests=["history", "food"], travelMode="motorbike", dailyStartTime="09:00",
+                           dailyEndTime="19:00", startLocation={"name": "1 Phan Tây Nhạc", "latitude": 21.0405,
+                                                                "longitude": 105.745})
+        options = generate_options(places, constraints)
+        signatures = {tuple(item.place.id for day in option.days for item in day.items) for option in options}
+        assert len(signatures) == 3, start

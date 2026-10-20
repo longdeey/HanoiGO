@@ -1119,6 +1119,18 @@ def generate_options(
         except NoFeasibleItinerary:
             continue
         explore_signature = tuple(item.place.id for day in explore.days for item in day.items)
+    # A short trip can still land on the same must-see sights and meals every
+    # time: leave out the best match's other stops, then all of them.
+    for keep_highlights in (True, False):
+        if explore_signature not in {best_signature, budget_signature}:
+            break
+        others = [place for place in places
+                  if place.id not in best_ids or (keep_highlights and is_highlight(place))]
+        try:
+            explore = build_itinerary(others, constraints, rain_probability, "EXPLORE_MORE", avoid_ids=best_ids)
+        except NoFeasibleItinerary:
+            continue
+        explore_signature = tuple(item.place.id for day in explore.days for item in day.items)
     options = (best, budget, explore)
     signatures = [
         tuple(item.place.id for day in option.days for item in day.items)
